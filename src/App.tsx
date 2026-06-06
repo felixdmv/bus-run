@@ -3474,6 +3474,29 @@ ${segments.join('\n')}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1' }}>Conexión con Google</span>
+                  
+                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left' }}>
+                    <label style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 'bold' }}>Google OAuth Client ID:</label>
+                    <input 
+                      type="text" 
+                      value={googleClientId} 
+                      onChange={(e) => {
+                        setGoogleClientId(e.target.value);
+                        localStorage.setItem('busrun-google-client-id', e.target.value);
+                      }}
+                      placeholder="Pega tu Google Client ID aquí"
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: '#222',
+                        color: 'white',
+                        fontSize: '0.75rem'
+                      }}
+                    />
+                  </div>
+
                   {userProfile.loggedIn ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontSize: '0.8rem', color: '#10b981' }}>✓ Conectado como <strong>{userProfile.email}</strong></span>
