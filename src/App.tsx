@@ -76,7 +76,7 @@ const parseJwt = (token: string) => {
 const STORAGE_PROGRESS_KEY = 'busrun-completed-lines-v5'; // Incremented key to avoid cache clashes
 const STORAGE_FEED_KEY = 'busrun-feed-activities-v5';
 const STORAGE_USER_KEY = 'busrun-user-profile-v5';
-const STORAGE_DEVICES_KEY = 'busrun-sync-devices-v5';
+
 
 // Leaflet DivIcons
 const stopIcon = L.divIcon({
@@ -289,18 +289,24 @@ export default function App() {
     bio: 'Atleta de transporte urbano. Conecta tus dispositivos y empieza a correr.'
   });
 
-  // Watch Sync integration states (including Samsung and Polar)
-  const [devices, setDevices] = useState<Record<string, ConnectedDevice>>({
-    garmin: { connected: false },
-    coros: { connected: false },
-    suunto: { connected: false },
-    polar: { connected: false },
-    samsung: { connected: false },
-    huawei: { connected: false }
+  // Strava integration state
+  const [stravaConfig, setStravaConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem('busrun-strava-config');
+      return saved ? JSON.parse(saved) : {
+        clientId: '',
+        clientSecret: '',
+        connected: false,
+        athleteName: '',
+        athleteId: '',
+        accessToken: '',
+        refreshToken: '',
+        expiresAt: 0
+      };
+    } catch(e) {
+      return { clientId: '', clientSecret: '', connected: false, athleteName: '', athleteId: '', accessToken: '', refreshToken: '', expiresAt: 0 };
+    }
   });
-  const [activeOauthBrand, setActiveOauthBrand] = useState<string | null>(null);
-  const [oauthStep, setOauthStep] = useState<number>(1);
-  const [oauthUsername, setOauthUsername] = useState('');
   const [notifications, setNotifications] = useState<{ id: string; brand: string; msg: string; type: 'info' | 'success' }[]>([]);
 
   const [gpxResult, setGpxResult] = useState<{ success: boolean; msg: string; matchPercent?: number } | null>(null);
@@ -422,14 +428,7 @@ export default function App() {
       }
     }
 
-    const savedDevices = localStorage.getItem(STORAGE_DEVICES_KEY);
-    if (savedDevices) {
-      try {
-        setDevices(JSON.parse(savedDevices));
-      } catch (e) {
-        console.error(e);
-      }
-    }
+
 
     const favs = localStorage.getItem('busrun-favorite-athletes-v5');
     if (favs) {
@@ -641,6 +640,81 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [showSettingsModal, showLoginModal, googleClientId]);
 
+  // Handle Strava OAuth redirect code on startup
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code) {
+      const exchangeCode = async () => {
+        try {
+          let currentConfig = {
+            clientId: '',
+            clientSecret: '',
+            connected: false,
+            athleteName: '',
+            athleteId: '',
+            accessToken: '',
+            refreshToken: '',
+            expiresAt: 0
+          };
+          try {
+            const saved = localStorage.getItem('busrun-strava-config');
+            if (saved) currentConfig = JSON.parse(saved);
+          } catch(e){}
+
+          if (!currentConfig.clientId || !currentConfig.clientSecret) {
+            const mockConfig = {
+              ...currentConfig,
+              connected: true,
+              athleteName: 'Félix (Strava Runner)',
+              athleteId: '98765432',
+              accessToken: 'mock-token',
+              refreshToken: 'mock-refresh',
+              expiresAt: Math.floor(Date.now() / 1000) + 36000
+            };
+            saveStravaConfig(mockConfig);
+            addNotification('Strava', '¡Cuenta de Strava (Simulada) vinculada con éxito!', 'success');
+          } else {
+            const response = await fetch('https://www.strava.com/oauth/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                client_id: currentConfig.clientId,
+                client_secret: currentConfig.clientSecret,
+                code: code,
+                grant_type: 'authorization_code'
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error('Error al intercambiar el token de Strava');
+            }
+
+            const data = await response.json();
+            const newConfig = {
+              clientId: currentConfig.clientId,
+              clientSecret: currentConfig.clientSecret,
+              connected: true,
+              athleteName: `${data.athlete.firstname} ${data.athlete.lastname}`,
+              athleteId: String(data.athlete.id),
+              accessToken: data.access_token,
+              refreshToken: data.refresh_token,
+              expiresAt: data.expires_at
+            };
+            saveStravaConfig(newConfig);
+            addNotification('Strava', `¡Cuenta de Strava conectada: ${newConfig.athleteName}!`, 'success');
+          }
+        } catch(err: any) {
+          console.error(err);
+          addNotification('Strava', 'Error al conectar Strava: ' + err.message, 'info');
+        } finally {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      };
+      exchangeCode();
+    }
+  }, []);
+
   const saveProgress = (newCompleted: typeof completed) => {
     setCompleted(newCompleted);
     localStorage.setItem(STORAGE_PROGRESS_KEY, JSON.stringify(newCompleted));
@@ -656,9 +730,9 @@ export default function App() {
     saveProfile(updated);
   };
 
-  const saveDevices = (newDevices: typeof devices) => {
-    setDevices(newDevices);
-    localStorage.setItem(STORAGE_DEVICES_KEY, JSON.stringify(newDevices));
+  const saveStravaConfig = (newConfig: typeof stravaConfig) => {
+    setStravaConfig(newConfig);
+    localStorage.setItem('busrun-strava-config', JSON.stringify(newConfig));
   };
 
   const saveFeed = (newFeed: UserActivity[]) => {
@@ -1027,31 +1101,70 @@ export default function App() {
     addNotification('Google', 'Sesión cerrada correctamente.', 'info');
   };
 
-  const handleConnectDevice = (brand: string) => {
-    setActiveOauthBrand(brand);
-    setOauthStep(1);
-    setOauthUsername('');
-  };
-
-  const handleFinishDeviceConnection = () => {
-    if (!activeOauthBrand) return;
-    const newDevices = {
-      ...devices,
-      [activeOauthBrand]: {
+  const handleConnectStrava = () => {
+    if (!stravaConfig.clientId || !stravaConfig.clientSecret) {
+      // Connect simulated account directly
+      const mockConfig = {
+        ...stravaConfig,
         connected: true,
-        lastSync: 'Sincronizado ahora',
-        userName: oauthUsername || 'runner_burgos'
-      }
-    };
-    saveDevices(newDevices);
-    addNotification(activeOauthBrand.toUpperCase(), `¡Dispositivo conectado con éxito! Tus trayectos se sincronizarán solos.`, 'success');
-    setActiveOauthBrand(null);
+        athleteName: 'Félix (Strava Runner)',
+        athleteId: '98765432',
+        accessToken: 'mock-token',
+        refreshToken: 'mock-refresh',
+        expiresAt: Math.floor(Date.now() / 1000) + 36000
+      };
+      saveStravaConfig(mockConfig);
+      addNotification('Strava', '¡Cuenta de Strava (Simulada) vinculada! Ya puedes simular sincronización.', 'success');
+    } else {
+      const redirectUri = window.location.origin;
+      const url = `https://www.strava.com/oauth/authorize?client_id=${stravaConfig.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=activity:read_all&approval_prompt=auto`;
+      window.location.href = url;
+    }
   };
 
-  const handleDisconnectDevice = (brand: string) => {
-    const newDevices = { ...devices, [brand]: { connected: false } };
-    saveDevices(newDevices);
-    addNotification(brand.toUpperCase(), `Se ha desconectado la sincronización automática.`, 'info');
+  const handleDisconnectStrava = () => {
+    saveStravaConfig({
+      clientId: stravaConfig.clientId,
+      clientSecret: stravaConfig.clientSecret,
+      connected: false,
+      athleteName: '',
+      athleteId: '',
+      accessToken: '',
+      refreshToken: '',
+      expiresAt: 0
+    });
+    addNotification('Strava', 'Cuenta de Strava desvinculada con éxito.', 'info');
+  };
+
+  const refreshStravaToken = async (config: typeof stravaConfig) => {
+    if (Date.now() / 1000 < config.expiresAt - 60) {
+      return config.accessToken;
+    }
+    try {
+      const response = await fetch('https://www.strava.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: config.clientId,
+          client_secret: config.clientSecret,
+          grant_type: 'refresh_token',
+          refresh_token: config.refreshToken
+        })
+      });
+      if (!response.ok) throw new Error('Refrescar token falló');
+      const data = await response.json();
+      const updated = {
+        ...config,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresAt: data.expires_at
+      };
+      saveStravaConfig(updated);
+      return data.access_token;
+    } catch(e) {
+      console.error('Error al refrescar token de Strava:', e);
+      return null;
+    }
   };
 
   const aggregatedLines = useMemo(() => {
@@ -1435,79 +1548,232 @@ ${gpxSegments}
     URL.revokeObjectURL(url);
   };
 
-  // Watch Auto-Sync Simulation
-  const triggerSimulatedWatchSync = () => {
-    const connectedBrands = Object.entries(devices)
-      .filter(([_, dev]) => dev.connected)
-      .map(([brand]) => brand);
+  const decodePolyline = (encoded: string): [number, number][] => {
+    const points: [number, number][] = [];
+    let index = 0, len = encoded.length;
+    let lat = 0, lng = 0;
 
-    if (connectedBrands.length === 0) {
-      alert("Por favor, conecta al menos un dispositivo deportivo (Garmin, Coros, Suunto, Polar, Samsung o Huawei) en la pestaña 'Mi Perfil' para simular la sincronización automática.");
+    while (index < len) {
+      let b, shift = 0, result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      points.push([lat / 1e5, lng / 1e5]);
+    }
+    return points;
+  };
+
+  const handleSyncStrava = async () => {
+    if (!stravaConfig.connected) {
+      alert("Por favor, vincula tu cuenta de Strava primero en la sección de configuración.");
       return;
     }
 
-    const randomBrand = connectedBrands[Math.floor(Math.random() * connectedBrands.length)];
-    
-    // Pick first uncompleted route
-    const uncompletedLine = aggregatedLines.find(line => !completed[`burgos_${line.ref}`]) || aggregatedLines[0];
-    if (!uncompletedLine) {
-      alert("No hay líneas disponibles para simular.");
-      return;
-    }
+    addNotification('Strava', 'Buscando actividades nuevas en Strava...', 'info');
 
-    addNotification(randomBrand.toUpperCase(), `Sincronizando entrenamiento detectado en tu reloj...`, 'info');
+    // MOCK SYNC FLOW
+    if (stravaConfig.accessToken === 'mock-token' || !stravaConfig.clientSecret) {
+      setTimeout(() => {
+        const uncompletedLine = aggregatedLines.find(line => !completed[`burgos_${line.ref}`]) || aggregatedLines[0];
+        if (!uncompletedLine) {
+          addNotification('Strava', 'Sincronización completa. No hay entrenamientos nuevos para importar.', 'info');
+          return;
+        }
 
-    setTimeout(() => {
-      const simulatedAccuracy = parseFloat((85 + Math.random() * 13).toFixed(1));
-      const timeEst = uncompletedLine.subRoutes[0]?.estRunningSeconds || 1200;
+        const simulatedAccuracy = parseFloat((87 + Math.random() * 11).toFixed(1));
+        const timeEst = uncompletedLine.subRoutes[0]?.estRunningSeconds || 1200;
 
-      // Completion registers by Line Reference (burgos_LXX)
-      const newCompleted = {
-        ...completed,
-        [`burgos_${uncompletedLine.ref}`]: {
-          date: new Date().toLocaleDateString(),
+        const newCompleted = {
+          ...completed,
+          [`burgos_${uncompletedLine.ref}`]: {
+            date: new Date().toLocaleDateString(),
+            timeSeconds: timeEst,
+            type: 'running' as const,
+            matchPercent: simulatedAccuracy
+          }
+        };
+        saveProgress(newCompleted);
+
+        const coords = uncompletedLine.subRoutes[0]?.coords.map(([lat, lon]) => [lat, lon] as [number, number]) || [];
+
+        const newAct: UserActivity = {
+          id: `strava-act-${Date.now()}`,
+          userName: userProfile.name,
+          userAvatar: userProfile.avatar,
+          lineId: uncompletedLine.id,
+          lineRef: uncompletedLine.ref,
+          lineName: uncompletedLine.name,
+          distanceKm: uncompletedLine.distanceKm,
+          elevationGain: uncompletedLine.subRoutes[0]?.elevationGain || 35,
           timeSeconds: timeEst,
-          type: 'running' as const,
-          matchPercent: simulatedAccuracy
+          date: 'Sincronizado vía Strava',
+          matchPercent: simulatedAccuracy,
+          type: 'running',
+          likes: 0,
+          comments: [],
+          cityId: 'burgos',
+          coords: coords
+        };
+        saveFeed([newAct, ...feedActivities]);
+        addNotification('Strava', `¡Nueva carrera 'Morning Run' importada de Strava! Has completado la Línea ${uncompletedLine.ref} (${simulatedAccuracy}% precisión).`, 'success');
+      }, 2000);
+      return;
+    }
+
+    // REAL SYNC FLOW
+    try {
+      const token = await refreshStravaToken(stravaConfig);
+      if (!token) {
+        addNotification('Strava', 'Error al refrescar token de Strava. Por favor, vuelve a vincular tu cuenta.', 'info');
+        return;
+      }
+
+      const response = await fetch(`https://www.strava.com/api/v3/athlete/activities?per_page=10`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('No se pudieron obtener las actividades de Strava.');
+      }
+
+      const activities = await response.json();
+      const runs = activities.filter((act: any) => act.type === 'Run' || act.sport_type === 'Run');
+
+      if (runs.length === 0) {
+        addNotification('Strava', 'Sincronizado. No tienes carreras recientes registradas en tu cuenta de Strava.', 'info');
+        return;
+      }
+
+      let importedIds: string[] = [];
+      try {
+        const saved = localStorage.getItem('busrun-imported-strava-ids');
+        if (saved) importedIds = JSON.parse(saved);
+      } catch(e){}
+
+      let newImportsCount = 0;
+      let updatedCompleted = { ...completed };
+      const newActs: UserActivity[] = [];
+
+      for (const run of runs) {
+        const runId = String(run.id);
+        if (importedIds.includes(runId)) continue;
+
+        importedIds.push(runId);
+        newImportsCount++;
+
+        let runCoords: [number, number][] = [];
+        if (run.map && run.map.summary_polyline) {
+          try {
+            runCoords = decodePolyline(run.map.summary_polyline);
+          } catch(e) {
+            console.error('Error decoding polyline', e);
+          }
         }
-      };
-      saveProgress(newCompleted);
 
-      // Generate simulated track for the feed
-      const coords = uncompletedLine.subRoutes[0]?.coords.map(([lat, lon]) => [lat, lon] as [number, number]) || [];
+        let bestMatchLine: any = null;
+        let bestMatchScore = 0;
 
-      // Post workout card to the feed
-      const newAct: UserActivity = {
-        id: `auto-act-${Date.now()}`,
-        userName: userProfile.name,
-        userAvatar: userProfile.avatar,
-        lineId: uncompletedLine.id,
-        lineRef: uncompletedLine.ref,
-        lineName: uncompletedLine.name,
-        distanceKm: uncompletedLine.distanceKm,
-        elevationGain: uncompletedLine.subRoutes[0]?.elevationGain || 35,
-        timeSeconds: timeEst,
-        date: 'Sincronizado vía ' + randomBrand.toUpperCase(),
-        matchPercent: simulatedAccuracy,
-        type: 'running',
-        likes: 0,
-        comments: [],
-        cityId: 'burgos',
-        coords: coords
-      };
-      saveFeed([newAct, ...feedActivities]);
+        if (runCoords.length > 5) {
+          for (const line of burgosBusLines) {
+            let visitedStopsCount = 0;
+            for (const stop of line.stops) {
+              const isClose = runCoords.some(([glat, glon]) => {
+                return haversineDistance(stop.lat, stop.lon, glat, glon) <= 0.12;
+              });
+              if (isClose) {
+                visitedStopsCount++;
+              }
+            }
 
-      const updatedDevices = {
-        ...devices,
-        [randomBrand]: {
-          ...devices[randomBrand],
-          lastSync: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            const pct = parseFloat(((visitedStopsCount / line.stops.length) * 100).toFixed(1));
+            if (pct > bestMatchScore) {
+              bestMatchScore = pct;
+              bestMatchLine = line;
+            }
+          }
         }
-      };
-      saveDevices(updatedDevices);
 
-      addNotification(randomBrand.toUpperCase(), `¡Trayecto completado! La Línea ${uncompletedLine.ref} se ha validado y guardado. ¡Válido en cualquier sentido!`, 'success');
-    }, 2500);
+        const distanceKm = run.distance ? parseFloat((run.distance / 1000).toFixed(2)) : parseFloat((runCoords.length * 0.05).toFixed(2));
+        const duration = run.moving_time || run.elapsed_time || 1500;
+        const elevation = run.total_elevation_gain || 0;
+
+        if (bestMatchScore >= 70 && bestMatchLine) {
+          updatedCompleted[`burgos_${bestMatchLine.ref}`] = {
+            date: new Date(run.start_date || Date.now()).toLocaleDateString(),
+            timeSeconds: duration,
+            type: 'running' as const,
+            matchPercent: bestMatchScore
+          };
+
+          newActs.push({
+            id: `strava-${runId}`,
+            userName: userProfile.name,
+            userAvatar: userProfile.avatar,
+            lineId: bestMatchLine.id,
+            lineRef: bestMatchLine.ref,
+            lineName: bestMatchLine.name,
+            distanceKm: distanceKm,
+            elevationGain: elevation,
+            timeSeconds: duration,
+            date: 'Sincronizado vía Strava',
+            matchPercent: bestMatchScore,
+            type: 'running',
+            likes: 0,
+            comments: [],
+            cityId: 'burgos',
+            coords: runCoords
+          });
+        } else {
+          // Free Run
+          newActs.push({
+            id: `strava-${runId}`,
+            userName: userProfile.name,
+            userAvatar: userProfile.avatar,
+            lineId: 'free-run',
+            lineRef: 'FREE',
+            lineName: run.name || 'Carrera Libre Strava',
+            distanceKm: distanceKm,
+            elevationGain: elevation,
+            timeSeconds: duration,
+            date: 'Sincronizado vía Strava',
+            matchPercent: 0,
+            type: 'running',
+            likes: 0,
+            comments: [],
+            cityId: 'burgos',
+            coords: runCoords
+          });
+        }
+      }
+
+      if (newImportsCount > 0) {
+        localStorage.setItem('busrun-imported-strava-ids', JSON.stringify(importedIds));
+        saveProgress(updatedCompleted);
+        saveFeed([...newActs, ...feedActivities]);
+        addNotification('Strava', `¡Sincronización con éxito! Se importaron ${newImportsCount} carreras nuevas desde tu Strava.`, 'success');
+      } else {
+        addNotification('Strava', 'Sincronizado. No hay nuevas actividades para importar en Strava.', 'info');
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      addNotification('Strava', 'Error al sincronizar con Strava: ' + err.message, 'info');
+    }
   };
 
   const handleGpxUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -2000,70 +2266,7 @@ ${segments.join('\n')}
         </div>
       )}
 
-      {/* Watch OAuth Connection */}
-      {activeOauthBrand && (
-        <div className="login-modal-overlay">
-          <div className="login-modal-card oauth-card">
-            <span className="brand-logo-large">🔌 {activeOauthBrand.toUpperCase()} CONNECT</span>
-            <div className="oauth-step-content">
-              <h3>Vincular tu reloj {activeOauthBrand.toUpperCase()}</h3>
-              
-              {['garmin', 'coros', 'suunto', 'polar'].includes(activeOauthBrand) ? (
-                <div className="oauth-instructions" style={{ textAlign: 'left', fontSize: '0.85rem', lineHeight: '1.5', display: 'flex', flexDirection: 'column', gap: '8px', margin: '12px 0' }}>
-                  <p><strong>Pasos para sincronizar automáticamente:</strong></p>
-                  <ol style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#e2e8f0' }}>
-                    <li>Abre la aplicación oficial de <strong>{activeOauthBrand.toUpperCase()}</strong> en tu móvil.</li>
-                    <li>Ve a <strong>Ajustes &gt; Aplicaciones de Terceros / Cuentas Vinculadas</strong>.</li>
-                    <li>Selecciona "BusRun" e inicia sesión con el usuario de abajo.</li>
-                    <li>¡Listo! Cada vez que guardes una actividad en tu reloj se subirá sola y se verificará contra el mapa de Burgos.</li>
-                  </ol>
-                  <div className="input-group-oauth" style={{ marginTop: '10px' }}>
-                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '4px', color: '#cbd5e1' }}>Usuario de {activeOauthBrand.toUpperCase()}</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ej. runner_burgos" 
-                      value={oauthUsername}
-                      onChange={(e) => setOauthUsername(e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #555', background: '#333', color: 'white' }}
-                    />
-                  </div>
-                  <button 
-                    className="btn-oauth-authorize" 
-                    disabled={!oauthUsername.trim()} 
-                    onClick={handleFinishDeviceConnection}
-                    style={{ marginTop: '12px', background: 'var(--brand-orange)', color: 'white', padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', width: '100%' }}
-                  >
-                    Autorizar y Vincular Reloj
-                  </button>
-                </div>
-              ) : (
-                <div className="oauth-instructions" style={{ textAlign: 'left', fontSize: '0.85rem', lineHeight: '1.5', display: 'flex', flexDirection: 'column', gap: '8px', margin: '12px 0' }}>
-                  <p className="warning-text" style={{ color: '#f59e0b', fontWeight: 'bold' }}>⚠️ Restricciones del Fabricante:</p>
-                  <p style={{ color: '#cbd5e1' }}>
-                    <strong>Samsung Health</strong> y <strong>Huawei Health</strong> restringen la exportación directa de trayectos GPS a plataformas externas.
-                  </p>
-                  <p><strong>Soluciones recomendadas para BusRun:</strong></p>
-                  <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#e2e8f0' }}>
-                    <li><strong>Opción A:</strong> Vincula tu reloj Samsung/Huawei a la app **Strava** o usa la app **Health Sync** (Android) o **RunGap** (iOS) para reenviar tus actividades a Strava, y conecta Strava.</li>
-                    <li><strong>Opción B:</strong> Exporta tu carrera como archivo <strong>.gpx</strong> desde la app oficial de Samsung/Huawei y súbela abajo en la sección de GPX en la pestaña Perfil.</li>
-                  </ul>
-                  <button 
-                    className="btn-oauth-authorize" 
-                    onClick={() => {
-                      setOauthUsername('sync_wearable');
-                      handleFinishDeviceConnection();
-                    }}
-                    style={{ marginTop: '12px', background: 'var(--brand-orange)', color: 'white', padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', width: '100%' }}
-                  >
-                    Entendido, Activar Enlace Alternativo
-                  </button>
-                </div>
-              )}
-            </div>
-            <button className="btn-close-modal" onClick={() => setActiveOauthBrand(null)} style={{ marginTop: '12px', background: 'transparent', border: '1px solid #777', color: '#ccc', width: '100%', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
-          </div>
-        </div>
-      )}
+
 
       {/* Private Chat Messenger Popup */}
       {showChatModal && (
@@ -2173,17 +2376,23 @@ ${segments.join('\n')}
                   </div>
                 </div>
 
-                {/* Watch sync card */}
-                <div className="sidebar-card watch-sync-card card-glow">
+                {/* Strava sync card */}
+                <div className="sidebar-card watch-sync-card card-glow" style={{ borderLeft: '3px solid #fc5200' }}>
                   <div className="coach-header">
-                    <span className="watch-badge">AUTO-SYNC RELOJ</span>
-                    <h4>Sincronizador Directo</h4>
+                    <span className="watch-badge" style={{ background: '#fc5200' }}>STRAVA SYNC</span>
+                    <h4>Sincronizar Actividades</h4>
                   </div>
                   <p className="watch-desc-text">
-                    ¿Has terminado tu carrera? Si has conectado tu Garmin, Coros, Polar o Suunto, pulsa para simular la sincronización automática del GPS.
+                    {stravaConfig.connected 
+                      ? `Conectado como @${stravaConfig.athleteName}. Sincroniza tus rodajes de Strava de forma instantánea.` 
+                      : 'Vincula tu cuenta de Strava en Ajustes para importar tus entrenamientos automáticamente.'}
                   </p>
-                  <button className="btn-force-sync" onClick={triggerSimulatedWatchSync}>
-                    🔄 Sincronizar Reloj Deportivo
+                  <button 
+                    className="btn-force-sync" 
+                    onClick={handleSyncStrava}
+                    style={{ background: stravaConfig.connected ? 'var(--brand-orange)' : '#444' }}
+                  >
+                    🔄 Sincronizar con Strava
                   </button>
                 </div>
 
@@ -3102,7 +3311,7 @@ ${segments.join('\n')}
                         );
                       })
                     ) : (
-                      <p className="no-history">Completa tu primera línea trotando o sincronizando tu reloj.</p>
+                      <p className="no-history">Completa tu primera línea trotando o sincronizando tu cuenta de Strava.</p>
                     )}
                   </div>
                 </section>
@@ -3306,10 +3515,10 @@ ${segments.join('\n')}
 
             {tutorialStep === 3 && (
               <div>
-                <div style={{ fontSize: '3rem', margin: '16px 0' }}>⌚</div>
-                <h3>Vincular Relojes Deportivos</h3>
+                <div style={{ fontSize: '3rem', margin: '16px 0' }}>🧡</div>
+                <h3>Sincronizar con Strava</h3>
                 <p style={{ margin: '12px 0 20px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-                  Conecta tus cuentas de <strong>Garmin, Coros, Polar, Suunto, Samsung o Huawei</strong> desde tu perfil. Tus rodajes se sincronizarán solos y la app detectará automáticamente qué línea has recorrido.
+                  Vincula tu cuenta de <strong>Strava</strong> desde tu perfil. Cualquier actividad que grabes con tu reloj Garmin, Apple Watch, Polar, Suunto o móvil se sincronizarán automáticamente y validarán tu recorrido.
                 </p>
               </div>
             )}
@@ -3578,108 +3787,107 @@ ${segments.join('\n')}
               </div>
             )}
 
-            {/* Tab 2: Devices Synchronization */}
+            {/* Tab 2: Strava Integration */}
             {settingsActiveTab === 'devices' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', marginBottom: '20px' }}>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
-                  Vincula tus relojes deportivos oficiales para sincronizar automáticamente tus actividades GPS.
+                  Vincula tu cuenta de Strava para sincronizar automáticamente tus carreras GPS (compatible con Garmin, Polar, Suunto, Coros y más).
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
-                  {/* Garmin */}
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ flex: 1, marginRight: '8px' }}>
-                      <strong style={{ color: 'white', fontSize: '0.85rem' }}>Garmin Connect 🔹</strong>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>
-                        {devices.garmin.connected ? `Conectado como @${devices.garmin.userName}` : 'Sincronizar Forerunner y Fenix'}
-                      </p>
-                    </div>
-                    <button 
-                      onClick={() => devices.garmin.connected ? handleDisconnectDevice('garmin') : handleConnectDevice('garmin')}
-                      style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: 'none', background: devices.garmin.connected ? '#ef4444' : 'var(--brand-orange)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      {devices.garmin.connected ? 'Desvincular' : 'Conectar'}
-                    </button>
-                  </div>
+                
+                <div style={{ background: 'rgba(252, 82, 0, 0.05)', border: '1px solid rgba(252, 82, 0, 0.15)', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    🧡 Strava Sync
+                  </span>
                   
-                  {/* Coros */}
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ flex: 1, marginRight: '8px' }}>
-                      <strong style={{ color: 'white', fontSize: '0.85rem' }}>Coros Health 🔸</strong>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>
-                        {devices.coros.connected ? `Conectado como @${devices.coros.userName}` : 'Sincronizar Pace y Apex'}
-                      </p>
+                  {stravaConfig.connected ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 'bold' }}>
+                        ✓ Conectado como @{stravaConfig.athleteName} (ID: {stravaConfig.athleteId})
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                        <button
+                          onClick={handleSyncStrava}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            background: 'var(--brand-orange)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🔄 Sincronizar Actividades
+                        </button>
+                        <button
+                          onClick={handleDisconnectStrava}
+                          style={{
+                            padding: '8px 12px',
+                            background: 'transparent',
+                            color: '#ef4444',
+                            border: '1px solid #ef4444',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Desvincular
+                        </button>
+                      </div>
                     </div>
-                    <button 
-                      onClick={() => devices.coros.connected ? handleDisconnectDevice('coros') : handleConnectDevice('coros')}
-                      style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: 'none', background: devices.coros.connected ? '#ef4444' : 'var(--brand-orange)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      {devices.coros.connected ? 'Desvincular' : 'Conectar'}
-                    </button>
-                  </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 'bold' }}>Strava Client ID:</label>
+                        <input 
+                          type="text" 
+                          value={stravaConfig.clientId}
+                          onChange={(e) => saveStravaConfig({ ...stravaConfig, clientId: e.target.value })}
+                          placeholder="Pega tu Client ID de Strava"
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', fontSize: '0.75rem' }}
+                        />
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 'bold' }}>Strava Client Secret:</label>
+                        <input 
+                          type="password" 
+                          value={stravaConfig.clientSecret}
+                          onChange={(e) => saveStravaConfig({ ...stravaConfig, clientSecret: e.target.value })}
+                          placeholder="Pega tu Client Secret de Strava"
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', fontSize: '0.75rem' }}
+                        />
+                      </div>
 
-                  {/* Suunto */}
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ flex: 1, marginRight: '8px' }}>
-                      <strong style={{ color: 'white', fontSize: '0.85rem' }}>Suunto App 🔺</strong>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>
-                        {devices.suunto.connected ? `Conectado como @${devices.suunto.userName}` : 'Sincronizar Suunto 9 y Peak'}
-                      </p>
-                    </div>
-                    <button 
-                      onClick={() => devices.suunto.connected ? handleDisconnectDevice('suunto') : handleConnectDevice('suunto')}
-                      style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: 'none', background: devices.suunto.connected ? '#ef4444' : 'var(--brand-orange)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      {devices.suunto.connected ? 'Desvincular' : 'Conectar'}
-                    </button>
-                  </div>
+                      <button
+                        onClick={handleConnectStrava}
+                        style={{
+                          background: 'linear-gradient(135deg, #fc5200, #ff7e40)',
+                          color: 'white',
+                          border: 'none',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          fontWeight: 'bold',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          marginTop: '4px'
+                        }}
+                      >
+                        🧡 Vincular cuenta de Strava
+                      </button>
 
-                  {/* Polar */}
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ flex: 1, marginRight: '8px' }}>
-                      <strong style={{ color: 'white', fontSize: '0.85rem' }}>Polar Flow 🍎</strong>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>
-                        {devices.polar.connected ? `Conectado como @${devices.polar.userName}` : 'Sincronizar Vantage y Grit'}
+                      <p style={{ margin: 0, fontSize: '0.65rem', color: '#94a3b8', lineHeight: '1.4' }}>
+                        * Si no configuras Client ID/Secret, pulsar en Vincular conectará una cuenta de simulación para probar el flujo gratis. Para conectar tu Strava real, crea una App API en strava.com/settings/api con dominio de callback: {window.location.host}.
                       </p>
                     </div>
-                    <button 
-                      onClick={() => devices.polar.connected ? handleDisconnectDevice('polar') : handleConnectDevice('polar')}
-                      style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: 'none', background: devices.polar.connected ? '#ef4444' : 'var(--brand-orange)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      {devices.polar.connected ? 'Desvincular' : 'Conectar'}
-                    </button>
-                  </div>
-
-                  {/* Samsung */}
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ flex: 1, marginRight: '8px' }}>
-                      <strong style={{ color: 'white', fontSize: '0.85rem' }}>Samsung Health 🌀</strong>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>
-                        {devices.samsung.connected ? 'Conectado vía Samsung' : 'Vincular Galaxy Watch'}
-                      </p>
-                    </div>
-                    <button 
-                      onClick={() => devices.samsung.connected ? handleDisconnectDevice('samsung') : handleConnectDevice('samsung')}
-                      style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: 'none', background: devices.samsung.connected ? '#ef4444' : 'var(--brand-orange)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      {devices.samsung.connected ? 'Desvincular' : 'Conectar'}
-                    </button>
-                  </div>
-
-                  {/* Huawei */}
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ flex: 1, marginRight: '8px' }}>
-                      <strong style={{ color: 'white', fontSize: '0.85rem' }}>Huawei Health 🔴</strong>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#94a3b8' }}>
-                        {devices.huawei.connected ? `Conectado como @${devices.huawei.userName}` : 'Sincronizar Huawei GT'}
-                      </p>
-                    </div>
-                    <button 
-                      onClick={() => devices.huawei.connected ? handleDisconnectDevice('huawei') : handleConnectDevice('huawei')}
-                      style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: 'none', background: devices.huawei.connected ? '#ef4444' : 'var(--brand-orange)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                      {devices.huawei.connected ? 'Desvincular' : 'Conectar'}
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
             )}
