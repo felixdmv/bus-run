@@ -355,6 +355,7 @@ export default function App() {
   const [showPwaBanner, setShowPwaBanner] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [showUpdateBanner, setShowUpdateBanner] = useState(false);
 
   // Notifications state
   const [unreadNotifications, setUnreadNotifications] = useState<Array<{ id: string; title: string; body: string; time: string; read: boolean; type: string }>>([
@@ -529,7 +530,14 @@ export default function App() {
       setShowPwaBanner(true);
     }
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    // Listen for PWA updates
+    const handleUpdate = () => setShowUpdateBanner(true);
+    window.addEventListener('pwa-update-available', handleUpdate);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('pwa-update-available', handleUpdate);
+    };
   }, []);
 
   const handleInstallPwa = async () => {
@@ -3974,6 +3982,35 @@ ${segments.join('\n')}
           <span>Perfil</span>
         </button>
       </nav>
+
+      {/* Floating PWA Update Available Toast */}
+      {showUpdateBanner && (
+        <div 
+          onClick={() => window.location.reload()}
+          style={{
+            position: 'fixed',
+            bottom: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(135deg, #10b981, #059669)',
+            color: 'white',
+            padding: '12px 20px',
+            borderRadius: '30px',
+            boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+            zIndex: 999999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '0.85rem',
+            animation: 'pulse 2s infinite',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          🚀 ¡Nueva versión disponible! Toca para actualizar
+        </div>
+      )}
     </div>
   );
 }
