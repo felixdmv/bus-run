@@ -344,6 +344,11 @@ export default function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsActiveTab, setSettingsActiveTab] = useState<'profile' | 'devices' | 'preferences'>('profile');
 
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showPwaBanner, setShowPwaBanner] = useState(false);
+  const [isIos, setIsIos] = useState(false);
+
   // Notifications state
   const [unreadNotifications, setUnreadNotifications] = useState<Array<{ id: string; title: string; body: string; time: string; read: boolean; type: string }>>([
     { id: 'n-1', title: 'Nueva Seguidora', body: 'Sofía Martínez ha empezado a seguirte.', time: 'Hace 10 min', read: false, type: 'follow' },
@@ -488,6 +493,43 @@ export default function App() {
       localStorage.setItem(STORAGE_FEED_KEY, JSON.stringify(defaultFeed));
     }
   }, []);
+
+  // PWA Install Event Handler
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowPwaBanner(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    // iOS Check
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const ios = /iphone|ipad|ipod/.test(userAgent);
+    setIsIos(ios);
+
+    const runningStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    if (ios && !runningStandalone) {
+      setShowPwaBanner(true);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallPwa = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setShowPwaBanner(false);
+      }
+      setDeferredPrompt(null);
+    } else if (isIos) {
+      alert("Para instalar en iPhone/iPad:\n\n1. Pulsa el botón de Compartir 📤 en la barra inferior de Safari.\n2. Selecciona 'Añadir a la pantalla de inicio' ➕ en la lista.\n3. Confirma pulsando 'Añadir' arriba a la derecha.");
+    } else {
+      alert("Para instalar esta app en tu móvil:\n\n1. Abre tu navegador y pulsa el botón de Opciones (tres puntos).\n2. Selecciona 'Instalar aplicación' o 'Añadir a pantalla de inicio'.");
+    }
+  };
 
   // Dynamic City Route Loader with Stop Name Sanitizer
   useEffect(() => {
@@ -1796,6 +1838,73 @@ ${segments.join('\n')}
           </button>
         </nav>
       </header>
+
+      {/* PWA Floating Installation Banner */}
+      {showPwaBanner && (
+        <div 
+          className="pwa-install-banner card-glow"
+          style={{
+            margin: '12px 20px 0 20px',
+            background: 'linear-gradient(135deg, #ff7e40, var(--brand-orange))',
+            color: 'white',
+            borderRadius: '16px',
+            padding: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            boxShadow: '0 8px 30px rgba(252, 82, 0, 0.3)',
+            animation: 'slideIn 0.5s ease-out',
+            zIndex: 999
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left' }}>
+            <span style={{ fontSize: '2rem' }}>📱</span>
+            <div>
+              <strong style={{ display: 'block', fontSize: '0.95rem' }}>Descargar BusRun App</strong>
+              <span style={{ fontSize: '0.8rem', opacity: 0.9, display: 'block', marginTop: '2px' }}>
+                {isIos 
+                  ? 'Instala la app en tu iPhone para correr a pantalla completa con GPS y mapas.'
+                  : 'Instala la aplicación en tu móvil para correr a pantalla completa y sin barra del navegador.'}
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              onClick={handleInstallPwa}
+              style={{
+                background: 'white',
+                color: 'var(--brand-orange)',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Instalar App
+            </button>
+            <button
+              onClick={() => setShowPwaBanner(false)}
+              style={{
+                background: 'transparent',
+                color: 'white',
+                border: 'none',
+                fontSize: '1.2rem',
+                cursor: 'pointer',
+                opacity: 0.8,
+                padding: '4px 8px'
+              }}
+              title="Omitir"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Google Login popup */}
       {showLoginModal && (
