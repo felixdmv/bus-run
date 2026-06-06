@@ -272,7 +272,13 @@ export default function App() {
   // Google Auth Settings & Modal
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [googleClientId, setGoogleClientId] = useState(() => {
-    return localStorage.getItem('busrun-google-client-id') || '1054045580649-4l05aevhfl83k7u048e718ndg27d3h75.apps.googleusercontent.com';
+    const saved = localStorage.getItem('busrun-google-client-id');
+    const legacy = '1054045580649-4l05aevhfl83k7u048e718ndg27d3h75.apps.googleusercontent.com';
+    if (saved === legacy) {
+      localStorage.removeItem('busrun-google-client-id');
+      return '966706651177-i57a7m33pv9kck76uhe1vdc7io8hlm6v.apps.googleusercontent.com';
+    }
+    return saved || '966706651177-i57a7m33pv9kck76uhe1vdc7io8hlm6v.apps.googleusercontent.com';
   });
   const [userProfile, setUserProfile] = useState<UserProfile>({
     loggedIn: false,
