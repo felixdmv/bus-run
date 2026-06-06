@@ -348,6 +348,7 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPwaBanner, setShowPwaBanner] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   // Notifications state
   const [unreadNotifications, setUnreadNotifications] = useState<Array<{ id: string; title: string; body: string; time: string; read: boolean; type: string }>>([
@@ -499,7 +500,12 @@ export default function App() {
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowPwaBanner(true);
+      
+      const runningStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+      const dismissed = localStorage.getItem('busrun-pwa-dismissed') === 'true';
+      if (!runningStandalone && !dismissed) {
+        setShowPwaBanner(true);
+      }
     };
     window.addEventListener('beforeinstallprompt', handler);
 
@@ -508,8 +514,12 @@ export default function App() {
     const ios = /iphone|ipad|ipod/.test(userAgent);
     setIsIos(ios);
 
+    const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
     const runningStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-    if (ios && !runningStandalone) {
+    setIsStandalone(!!runningStandalone);
+
+    const dismissed = localStorage.getItem('busrun-pwa-dismissed') === 'true';
+    if (isMobile && !runningStandalone && !dismissed) {
       setShowPwaBanner(true);
     }
 
@@ -1747,7 +1757,8 @@ ${segments.join('\n')}
                     position: 'absolute',
                     top: '40px',
                     right: '0',
-                    width: '320px',
+                    width: 'calc(100vw - 40px)',
+                    maxWidth: '320px',
                     background: 'var(--brand-dark)',
                     border: '1px solid rgba(255,255,255,0.15)',
                     borderRadius: '16px',
@@ -1888,7 +1899,10 @@ ${segments.join('\n')}
               Instalar App
             </button>
             <button
-              onClick={() => setShowPwaBanner(false)}
+              onClick={() => {
+                setShowPwaBanner(false);
+                localStorage.setItem('busrun-pwa-dismissed', 'true');
+              }}
               style={{
                 background: 'transparent',
                 color: 'white',
@@ -3714,6 +3728,50 @@ ${segments.join('\n')}
                       Avisar cuando le den Me Gusta
                     </label>
                   </div>
+                </div>
+
+                <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '12px 0' }} />
+                
+                <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    📱 {isStandalone ? '✓ Aplicación Instalada' : 'Descargar / Instalar App'}
+                  </span>
+                  {isStandalone ? (
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#10b981', lineHeight: '1.4' }}>
+                      Estás ejecutando BusRun en modo aplicación a pantalla completa. ¡Excelente!
+                    </p>
+                  ) : (
+                    <>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                        Instala BusRun en tu teléfono para correr a pantalla completa, sin la barra de direcciones del navegador y con GPS optimizado.
+                      </p>
+                      <button
+                        onClick={handleInstallPwa}
+                        style={{
+                          background: 'linear-gradient(135deg, #ff7e40, var(--brand-orange))',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          fontWeight: 'bold',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'transform 0.2s',
+                          marginTop: '4px'
+                        }}
+                      >
+                        📥 Instalar Aplicación
+                      </button>
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', marginTop: '4px' }}>
+                        <div style={{ marginBottom: '4px' }}><strong>iOS (Safari):</strong> Pulsa Compartir 📤 y luego <strong>"Añadir a la pantalla de inicio"</strong> ➕.</div>
+                        <div><strong>Android (Chrome):</strong> Pulsa "Instalar" arriba o el menú ⫶ y <strong>"Instalar aplicación"</strong>.</div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
