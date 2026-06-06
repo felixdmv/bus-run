@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <rect width="512" height="512" rx="128" fill="#fc5200"/>
+  <!-- Stylized route line -->
+  <path d="M 100 412 C 150 350, 180 200, 256 256 C 320 300, 360 120, 412 100" fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round"/>
+  <!-- Glowing map pin -->
+  <circle cx="412" cy="100" r="30" fill="#ffea00"/>
+  <!-- Running athlete figure -->
+  <path d="M 230 180 C 240 170, 250 170, 260 180 C 270 190, 260 210, 250 210 C 240 210, 220 190, 230 180 Z" fill="#ffffff"/>
+  <path d="M 220 220 L 260 250 L 240 300 L 270 360" stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <path d="M 260 250 L 290 230 L 320 270" stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <path d="M 220 220 L 200 260 L 170 280" stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <path d="M 240 300 L 200 330 L 190 370" stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none"/>
+</svg>

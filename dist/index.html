@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>BusRun - Running Urbano</title>
+    <meta name="theme-color" content="#fc5200" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registrado con éxito', reg))
+            .catch(err => console.error('Error registrando Service Worker', err));
+        });
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/index-C6-OWDJA.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CVHbHS87.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+
