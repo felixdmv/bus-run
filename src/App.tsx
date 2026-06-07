@@ -29,6 +29,7 @@ interface LineRoute {
 
 interface UserActivity {
   id: string;
+  userId?: string;
   userName: string;
   userAvatar: string;
   lineId: string;
@@ -285,7 +286,6 @@ export default function App() {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
 
   // Google Auth Settings & Modal
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [googleClientId, setGoogleClientId] = useState(() => {
     const saved = localStorage.getItem('busrun-google-client-id');
     const legacy = '1054045580649-4l05aevhfl83k7u048e718ndg27d3h75.apps.googleusercontent.com';
@@ -355,7 +355,6 @@ export default function App() {
     }
   });
   const [notifications, setNotifications] = useState<{ id: string; brand: string; msg: string; type: 'info' | 'success' }[]>([]);
-  const [showStravaCredentialsModal, setShowStravaCredentialsModal] = useState(false);
 
   const [gpxResult, setGpxResult] = useState<{ success: boolean; msg: string; matchPercent?: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -440,11 +439,11 @@ export default function App() {
   const [registeredAthletes, setRegisteredAthletes] = useState<any[]>([]);
 
   const activeAthletesList = useMemo(() => {
-    if (!userProfile.isTestingMode && supabase) {
+    if (supabase) {
       return registeredAthletes.filter(ath => ath.id !== userProfile.id);
     }
-    return [...mockAthletesList, ...registeredAthletes];
-  }, [registeredAthletes, userProfile.isTestingMode, userProfile.id]);
+    return [];
+  }, [registeredAthletes, userProfile.id]);
 
   // Selected Athlete for profile popup
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
@@ -715,7 +714,7 @@ export default function App() {
 
     const timer = setTimeout(initGoogle, 300);
     return () => clearTimeout(timer);
-  }, [showSettingsModal, showLoginModal, googleClientId, userProfile.loggedIn, onboardingCompleted]);
+  }, [showSettingsModal, googleClientId, userProfile.loggedIn, onboardingCompleted]);
 
   // Handle Strava OAuth redirect code on startup
   useEffect(() => {
@@ -1151,37 +1150,7 @@ export default function App() {
     }, 500);
   };
 
-  const handleGoogleLogin = () => {
-    setShowLoginModal(true);
-  };
 
-  const handleFinishGoogleLogin = async (mockName: string, mockEmail: string, mockAvatar: string) => {
-    const newId = `mock-${mockName.toLowerCase().replace(/\s+/g, '-')}`;
-    const newProfile: UserProfile = {
-      id: newId,
-      loggedIn: true,
-      name: mockName,
-      email: mockEmail,
-      avatar: mockAvatar,
-      location: 'Burgos, España',
-      bio: 'Corredor burgalés conectado por Google. ¡Listo para conquistar el Bulevar!',
-      isTestingMode: true
-    };
-    saveProfile(newProfile);
-    setShowLoginModal(false);
-    addNotification('Google', `¡Sesión iniciada como ${mockName}! Tu perfil se ha sincronizado.`, 'success');
-    
-    if (supabase) {
-      await supabase.from('profiles').upsert({
-        id: newProfile.id,
-        email: newProfile.email,
-        name: newProfile.name,
-        avatar: newProfile.avatar,
-        bio: newProfile.bio,
-        location: newProfile.location
-      });
-    }
-  };
 
   const handleLogout = () => {
     const newProfile: UserProfile = {
@@ -1213,34 +1182,14 @@ export default function App() {
   };
 
   const handleConnectStrava = () => {
-    setShowStravaCredentialsModal(true);
-  };
-
-  const handleStartRealStravaAuth = () => {
     const clientId = import.meta.env.VITE_STRAVA_CLIENT_ID || stravaConfig.clientId;
     if (!clientId) {
       alert("No se ha configurado el Client ID de Strava en las variables de entorno.");
       return;
     }
-    setShowStravaCredentialsModal(false);
     const redirectUri = window.location.origin;
     const url = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=activity:read_all&approval_prompt=auto`;
     window.location.href = url;
-  };
-
-  const handleStartMockStravaAuth = () => {
-    setShowStravaCredentialsModal(false);
-    const mockConfig = {
-      ...stravaConfig,
-      connected: true,
-      athleteName: 'Félix (Strava Runner)',
-      athleteId: '98765432',
-      accessToken: 'mock-token',
-      refreshToken: 'mock-refresh',
-      expiresAt: Math.floor(Date.now() / 1000) + 36000
-    };
-    saveStravaConfig(mockConfig);
-    addNotification('Strava', '¡Cuenta de Strava (Simulada) vinculada! Ya puedes simular sincronización.', 'success');
   };
 
   const handleDisconnectStrava = () => {
@@ -1441,40 +1390,18 @@ export default function App() {
   }, [searchQuery, filterType, distanceFilter, completed, aggregatedLines]);
 
   const visibleFeedActivities = useMemo(() => {
-    const athleteIdMap: Record<string, string> = {
-      'Carlos Gómez': 'carlos-gomez',
-      'Sofía Martínez': 'sofia-martinez',
-      'Marta Corredora': 'marta-corredora',
-      'Diego Cid': 'diego-cid'
-    };
     return feedActivities.filter(act => {
-      // If NOT in testing mode (i.e. real user), only show own activities
-      if (!userProfile.isTestingMode) {
-        return act.userName === userProfile.name;
-      }
-      if (act.userName === userProfile.name) return true;
-      const aid = athleteIdMap[act.userName];
-      if (aid && followedAthletes[aid]) return true;
+      if (act.userId === userProfile.id || act.userName === userProfile.name) return true;
+      if (act.userId && followedAthletes[act.userId]) return true;
       return false;
     });
-  }, [feedActivities, userProfile.name, followedAthletes, userProfile.isTestingMode]);
+  }, [feedActivities, userProfile.id, userProfile.name, followedAthletes]);
 
   const recommendedAthletes = useMemo(() => {
-    if (!userProfile.isTestingMode) return []; // Hide for real users
-    const followedIds = Object.keys(followedAthletes).filter(id => followedAthletes[id]);
-    const friendsOfFriends = new Set<string>();
-
-    followedIds.forEach(fId => {
-      const targets = mockFollowRelations[fId] || [];
-      targets.forEach(tId => {
-        if (!followedAthletes[tId] && tId !== 'me' && tId !== 'carlos-gomez') {
-          friendsOfFriends.add(tId);
-        }
-      });
-    });
-
-    return mockAthletesList.filter(ath => friendsOfFriends.has(ath.id) && !followedAthletes[ath.id]);
-  }, [followedAthletes, userProfile.isTestingMode]);
+    return registeredAthletes
+      .filter(ath => ath.id !== userProfile.id && !followedAthletes[ath.id])
+      .slice(0, 4);
+  }, [registeredAthletes, userProfile.id, followedAthletes]);
 
   const fetchFeedFromSupabase = async () => {
     if (!supabase) return;
@@ -1504,6 +1431,7 @@ export default function App() {
 
           return {
             id: act.id,
+            userId: act.user_id,
             userName: act.profiles?.name || 'Atleta',
             userAvatar: act.profiles?.avatar || '🏃‍♂️',
             lineId: act.line_id || undefined,
@@ -1578,35 +1506,20 @@ export default function App() {
 
   const handleSendMessage = async (textStr: string) => {
     if (!textStr.trim()) return;
-    const recipient = chatRecipient || { id: 'marta-corredora', name: 'Marta Corredora' };
+    const recipient = chatRecipient;
+    if (!recipient) return;
 
-    setChatMessages(prev => [
-      ...prev,
-      {
-        sender: 'me',
-        text: textStr.trim(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
     setChatInput('');
 
-    if (supabase && userProfile.loggedIn && !(recipient.id === 'marta-corredora' && userProfile.isTestingMode)) {
-      await supabase.from('messages').insert({
+    if (supabase && userProfile.loggedIn) {
+      const { error } = await supabase.from('messages').insert({
         sender_id: userProfile.id,
         receiver_id: recipient.id,
         text: textStr.trim()
       });
-    } else {
-      setTimeout(() => {
-        setChatMessages(prev => [
-          ...prev,
-          {
-            sender: 'other',
-            text: '¡Totalmente de acuerdo! La clave es tomárselo con calma al principio. ¡A seguir sumando!',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-      }, 1200);
+      if (error) {
+        console.error('Error sending message:', error);
+      }
     }
   };
 
@@ -1654,12 +1567,8 @@ export default function App() {
 
   useEffect(() => {
     const client = supabase;
-    if (!client || !showChatModal) return;
-    const recipient = chatRecipient || { id: 'marta-corredora', name: 'Marta Corredora' };
-    
-    if (recipient.id === 'marta-corredora' && userProfile.isTestingMode) {
-      return;
-    }
+    if (!client || !showChatModal || !chatRecipient) return;
+    const recipient = chatRecipient;
 
     const fetchMessages = async () => {
       const { data } = await client
@@ -2383,48 +2292,6 @@ ${segments.join('\n')}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', width: '100%' }}>
                 {/* Official Google Button */}
                 <div id="google-signin-btn-real" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}></div>
-                
-                <div style={{ width: '100%', height: '1px', background: 'rgba(255, 255, 255, 0.1)', margin: '8px 0' }} />
-                
-                <button
-                  onClick={() => {
-                    const mockProfile: UserProfile = {
-                      id: 'mock-tester',
-                      loggedIn: true,
-                      name: 'Félix (Tester)',
-                      email: 'felix.tester@busrun.com',
-                      avatar: '🤖',
-                      location: 'Burgos, España',
-                      bio: 'Sesión de pruebas internas de BusRun. ¡Simulación activa!',
-                      isTestingMode: true
-                    };
-                    saveProfile(mockProfile);
-                    const initialProgress = {
-                      'burgos_L01': {
-                        date: new Date(Date.now() - 2 * 24 * 3600 * 1000).toLocaleDateString(),
-                        timeSeconds: 1143,
-                        type: 'running' as const,
-                        matchPercent: 94.5
-                      }
-                    };
-                    saveProgress(initialProgress);
-                    addNotification('Sistema', 'Iniciando sesión en Modo de Prueba (Interno)...', 'success');
-                  }}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px dashed rgba(255, 255, 255, 0.3)',
-                    color: '#e2e8f0',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    fontWeight: '600',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  🧪 Usar Modo Prueba (Pruebas Internas)
-                </button>
               </div>
             </div>
           ) : !stravaConfig.connected && localStorage.getItem('busrun-strava-skipped') !== 'true' ? (
@@ -2432,12 +2299,12 @@ ${segments.join('\n')}
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>Paso 2: Conectar Strava 🧡</h2>
               <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.6', marginBottom: '20px' }}>
-                BusRun sincroniza tus recorridos de Strava. Conecta tu cuenta de Strava o inicia la simulación de prueba para empezar.
+                BusRun sincroniza tus recorridos de Strava. Conecta tu cuenta de Strava para empezar a registrar tus actividades reales.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginBottom: '16px' }}>
                 <button
-                  onClick={handleStartRealStravaAuth}
+                  onClick={handleConnectStrava}
                   style={{
                     width: '100%',
                     background: 'linear-gradient(135deg, #fc5200, #ff7e40)',
@@ -2452,36 +2319,6 @@ ${segments.join('\n')}
                   }}
                 >
                   🚀 Vincular Strava Real
-                </button>
-
-                <button
-                  onClick={() => {
-                    const mockConfig = {
-                      ...stravaConfig,
-                      connected: true,
-                      athleteName: userProfile.name || 'Félix (Strava Runner)',
-                      athleteId: '98765432',
-                      accessToken: 'mock-token',
-                      refreshToken: 'mock-refresh',
-                      expiresAt: Math.floor(Date.now() / 1000) + 36000
-                    };
-                    saveStravaConfig(mockConfig);
-                    handleProfileChange('isTestingMode', true);
-                    addNotification('Strava', '¡Cuenta de Strava (Simulada) vinculada con éxito!', 'success');
-                  }}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: 'white',
-                    padding: '10px',
-                    borderRadius: '10px',
-                    fontWeight: '500',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🧪 Usar Cuenta Simulada (Modo de Prueba)
                 </button>
 
                 <button
@@ -2880,128 +2717,7 @@ ${segments.join('\n')}
         </div>
       )}
 
-      {/* Google Login popup */}
-      {showLoginModal && (
-        <div className="login-modal-overlay">
-          <div className="login-modal-card">
-            <h3>Iniciar sesión con Google</h3>
-            <p className="login-subtitle">Inicia sesión de forma real con tu cuenta de Google:</p>
-            
-            {/* Real Google Button Container */}
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
-              <div id="google-signin-btn-real"></div>
-            </div>
 
-            <div className="client-id-config">
-              <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1' }}>
-                Google OAuth Client ID:
-              </label>
-              <input 
-                type="text" 
-                value={googleClientId} 
-                onChange={(e) => {
-                  setGoogleClientId(e.target.value);
-                  localStorage.setItem('busrun-google-client-id', e.target.value);
-                }}
-                placeholder="Pega tu Google Client ID aquí"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  background: 'rgba(0,0,0,0.3)',
-                  color: 'white',
-                  fontSize: '0.75rem',
-                  marginTop: '4px'
-                }}
-              />
-              <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.3' }}>
-                * Por defecto usa un Client ID válido en localhost. Si publicas la app en Vercel/Netlify, crea uno en Google Cloud Console para tu dominio.
-              </p>
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
-
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>
-              O usa una cuenta simulada para probar rápido sin iniciar sesión real:
-            </p>
-            <div className="mock-accounts-list">
-              <button onClick={() => handleFinishGoogleLogin('Félix García', 'felix.garcia@gmail.com', '⚡')}>
-                <span className="acc-avatar">⚡</span>
-                <div className="acc-details">
-                  <strong>Félix García</strong>
-                  <span>felix.garcia@gmail.com</span>
-                </div>
-              </button>
-              <button onClick={() => handleFinishGoogleLogin('Marta Corredora', 'marta.runner@gmail.com', '🏃‍♀️')}>
-                <span className="acc-avatar">🏃‍♀️</span>
-                <div className="acc-details">
-                  <strong>Marta Corredora</strong>
-                  <span>marta.runner@gmail.com</span>
-                </div>
-              </button>
-            </div>
-            <button className="btn-close-modal" onClick={() => setShowLoginModal(false)}>Cancelar</button>
-          </div>
-        </div>
-      )}
-
-      {/* Strava Credentials Modal */}
-      {showStravaCredentialsModal && (
-        <div className="login-modal-overlay" style={{ zIndex: 999999 }}>
-          <div className="login-modal-card">
-            <h3>Vincular cuenta de Strava 🧡</h3>
-            <p className="login-subtitle" style={{ marginBottom: '20px', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-              Elige cómo deseas conectar tu cuenta de Strava con BusRun:
-            </p>
-
-            <button
-              onClick={handleStartRealStravaAuth}
-              style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, #fc5200, #ff7e40)',
-                color: 'white',
-                border: 'none',
-                padding: '12px',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                marginBottom: '10px',
-                boxShadow: '0 4px 12px rgba(252, 82, 0, 0.25)'
-              }}
-            >
-              🚀 Conectar Strava Real
-            </button>
-
-            <button
-              onClick={handleStartMockStravaAuth}
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: 'white',
-                padding: '10px',
-                borderRadius: '8px',
-                fontWeight: '500',
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-                marginBottom: '16px'
-              }}
-            >
-              ⚡ Usar Cuenta Simulada (Modo de Prueba)
-            </button>
-
-            <button 
-              className="btn-close-modal" 
-              onClick={() => setShowStravaCredentialsModal(false)}
-              style={{ width: '100%', background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
 
 
 
@@ -3161,54 +2877,23 @@ ${segments.join('\n')}
 
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                       {/* Google Connection Button */}
-                      {!userProfile.loggedIn ? (
-                        <button
-                          onClick={() => setShowLoginModal(true)}
-                          style={{
-                            flex: 1,
-                            minWidth: '140px',
-                            background: 'white',
-                            color: '#222',
-                            border: 'none',
-                            padding: '10px 14px',
-                            borderRadius: '8px',
-                            fontWeight: 'bold',
-                            fontSize: '0.8rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                          }}
-                        >
-                          <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: '4px' }}>
-                            <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7l2.76 2.13c1.61-1.48 2.53-3.66 2.53-6.22z"/>
-                            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.76-2.13c-.76.51-1.74.82-3.2.82-2.46 0-4.55-1.66-5.3-3.9L.94 12.8C2.42 15.8 5.48 18 9 18z"/>
-                            <path fill="#FBBC05" d="M3.7 10.61c-.19-.57-.3-1.18-.3-1.8s.11-1.23.3-1.8L.94 4.89C.34 6.13 0 7.53 0 9s.34 2.87.94 4.11l2.76-2.5z"/>
-                            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.47.89 11.43 0 9 0 5.48 0 2.42 2.2.94 5.21l2.76 2.5c.75-2.24 2.84-3.9 5.3-3.9z"/>
-                          </svg>
-                          Acceder con Google
-                        </button>
-                      ) : (
-                        <div style={{
-                          flex: 1,
-                          minWidth: '140px',
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid rgba(255,255,255,0.1)',
-                          padding: '10px 14px',
-                          borderRadius: '8px',
-                          fontSize: '0.8rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          color: '#10b981',
-                          fontWeight: '500',
-                          justifyContent: 'center'
-                        }}>
-                          👤 {userProfile.name}
-                        </div>
-                      )}
+                      <div style={{
+                        flex: 1,
+                        minWidth: '140px',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: '#10b981',
+                        fontWeight: '500',
+                        justifyContent: 'center'
+                      }}>
+                        👤 {userProfile.name} (Conectado)
+                      </div>
 
                       {/* Strava Connection Button */}
                       {!stravaConfig.connected ? (
@@ -4006,54 +3691,23 @@ ${segments.join('\n')}
 
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {/* Google Connection Button */}
-                  {!userProfile.loggedIn ? (
-                    <button
-                      onClick={() => setShowLoginModal(true)}
-                      style={{
+                      <div style={{
                         flex: 1,
                         minWidth: '140px',
-                        background: 'white',
-                        color: '#222',
-                        border: 'none',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         padding: '10px 14px',
                         borderRadius: '8px',
-                        fontWeight: 'bold',
                         fontSize: '0.8rem',
-                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
                         gap: '8px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                      }}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: '4px' }}>
-                        <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7l2.76 2.13c1.61-1.48 2.53-3.66 2.53-6.22z"/>
-                        <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.76-2.13c-.76.51-1.74.82-3.2.82-2.46 0-4.55-1.66-5.3-3.9L.94 12.8C2.42 15.8 5.48 18 9 18z"/>
-                        <path fill="#FBBC05" d="M3.7 10.61c-.19-.57-.3-1.18-.3-1.8s.11-1.23.3-1.8L.94 4.89C.34 6.13 0 7.53 0 9s.34 2.87.94 4.11l2.76-2.5z"/>
-                        <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.47.89 11.43 0 9 0 5.48 0 2.42 2.2.94 5.21l2.76 2.5c.75-2.24 2.84-3.9 5.3-3.9z"/>
-                      </svg>
-                      Acceder con Google
-                    </button>
-                  ) : (
-                    <div style={{
-                      flex: 1,
-                      minWidth: '140px',
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      fontSize: '0.8rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      color: '#10b981',
-                      fontWeight: '500',
-                      justifyContent: 'center'
-                    }}>
-                      👤 {userProfile.name}
-                    </div>
-                  )}
+                        color: '#10b981',
+                        fontWeight: '500',
+                        justifyContent: 'center'
+                      }}>
+                        👤 {userProfile.name} (Conectado)
+                      </div>
 
                   {/* Strava Connection Button */}
                   {!stravaConfig.connected ? (
@@ -4684,54 +4338,7 @@ ${segments.join('\n')}
                       </button>
                     </div>
                   ) : (
-                    <>
-                      <div id="google-signin-btn-real" style={{ margin: '6px 0' }}></div>
-                      <p style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', margin: 0 }}>O usa una cuenta de pruebas simulada:</p>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                        <button 
-                          onClick={() => {
-                            const newProfile: UserProfile = {
-                              id: 'mock-felix-garcia',
-                              loggedIn: true,
-                              name: 'Félix García',
-                              email: 'felix.garcia@gmail.com',
-                              avatar: '⚡',
-                              location: 'Burgos, España',
-                              bio: 'Corredor aficionado de Burgos. ¡A por todas las líneas!',
-                              isTestingMode: true
-                            };
-                            saveProfile(newProfile);
-                            localStorage.setItem('busrun-onboarding-completed', 'true');
-                            setOnboardingCompleted(true);
-                            addNotification('Google', '¡Sesión de Félix García simulada!', 'success');
-                          }}
-                          style={{ padding: '6px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', cursor: 'pointer' }}
-                        >
-                          ⚡ Félix García
-                        </button>
-                        <button 
-                          onClick={() => {
-                            const newProfile: UserProfile = {
-                              id: 'mock-marta-corredora',
-                              loggedIn: true,
-                              name: 'Marta Corredora',
-                              email: 'marta.runner@gmail.com',
-                              avatar: '🏃‍♀️',
-                              location: 'Burgos, España',
-                              bio: 'Buscando el 100% de la ciudad.',
-                              isTestingMode: true
-                            };
-                            saveProfile(newProfile);
-                            localStorage.setItem('busrun-onboarding-completed', 'true');
-                            setOnboardingCompleted(true);
-                            addNotification('Google', '¡Sesión de Marta Corredora simulada!', 'success');
-                          }}
-                          style={{ padding: '6px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', cursor: 'pointer' }}
-                        >
-                          🏃‍♀️ Marta C.
-                        </button>
-                      </div>
-                    </>
+                    <div id="google-signin-btn-real" style={{ margin: '6px 0', display: 'flex', justifyContent: 'center' }}></div>
                   )}
                 </div>
               </div>
