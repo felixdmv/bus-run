@@ -246,6 +246,18 @@ interface UserProfile {
   bio: string;
 }
 
+const getStravaProxyUrl = (path: string, queryParams: Record<string, string | number> = {}) => {
+  const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'https://bus-run.vercel.app'
+    : '';
+  const params = new URLSearchParams();
+  params.set('path', path);
+  Object.entries(queryParams).forEach(([key, val]) => {
+    params.set(key, String(val));
+  });
+  return `${base}/api/strava-proxy?${params.toString()}`;
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'feed' | 'routes' | 'map' | 'profile' | 'search'>('feed');
   const [loadedBusLines, setLoadedBusLines] = useState<LineRoute[]>([]);
@@ -308,6 +320,7 @@ export default function App() {
     }
   });
   const [notifications, setNotifications] = useState<{ id: string; brand: string; msg: string; type: 'info' | 'success' }[]>([]);
+  const [showStravaCredentialsModal, setShowStravaCredentialsModal] = useState(false);
 
   const [gpxResult, setGpxResult] = useState<{ success: boolean; msg: string; matchPercent?: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -675,7 +688,7 @@ export default function App() {
             saveStravaConfig(mockConfig);
             addNotification('Strava', '¡Cuenta de Strava (Simulada) vinculada con éxito!', 'success');
           } else {
-            const response = await fetch('https://www.strava.com/oauth/token', {
+            const response = await fetch(getStravaProxyUrl('oauth/token'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1102,24 +1115,33 @@ export default function App() {
   };
 
   const handleConnectStrava = () => {
+    setShowStravaCredentialsModal(true);
+  };
+
+  const handleStartRealStravaAuth = () => {
     if (!stravaConfig.clientId || !stravaConfig.clientSecret) {
-      // Connect simulated account directly
-      const mockConfig = {
-        ...stravaConfig,
-        connected: true,
-        athleteName: 'Félix (Strava Runner)',
-        athleteId: '98765432',
-        accessToken: 'mock-token',
-        refreshToken: 'mock-refresh',
-        expiresAt: Math.floor(Date.now() / 1000) + 36000
-      };
-      saveStravaConfig(mockConfig);
-      addNotification('Strava', '¡Cuenta de Strava (Simulada) vinculada! Ya puedes simular sincronización.', 'success');
-    } else {
-      const redirectUri = window.location.origin;
-      const url = `https://www.strava.com/oauth/authorize?client_id=${stravaConfig.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=activity:read_all&approval_prompt=auto`;
-      window.location.href = url;
+      alert("Por favor, introduce tu Client ID y Client Secret de Strava.");
+      return;
     }
+    setShowStravaCredentialsModal(false);
+    const redirectUri = window.location.origin;
+    const url = `https://www.strava.com/oauth/authorize?client_id=${stravaConfig.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=activity:read_all&approval_prompt=auto`;
+    window.location.href = url;
+  };
+
+  const handleStartMockStravaAuth = () => {
+    setShowStravaCredentialsModal(false);
+    const mockConfig = {
+      ...stravaConfig,
+      connected: true,
+      athleteName: 'Félix (Strava Runner)',
+      athleteId: '98765432',
+      accessToken: 'mock-token',
+      refreshToken: 'mock-refresh',
+      expiresAt: Math.floor(Date.now() / 1000) + 36000
+    };
+    saveStravaConfig(mockConfig);
+    addNotification('Strava', '¡Cuenta de Strava (Simulada) vinculada! Ya puedes simular sincronización.', 'success');
   };
 
   const handleDisconnectStrava = () => {
@@ -1141,7 +1163,7 @@ export default function App() {
       return config.accessToken;
     }
     try {
-      const response = await fetch('https://www.strava.com/oauth/token', {
+      const response = await fetch(getStravaProxyUrl('oauth/token'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1643,7 +1665,7 @@ ${gpxSegments}
         return;
       }
 
-      const response = await fetch(`https://www.strava.com/api/v3/athlete/activities?per_page=10`, {
+      const response = await fetch(getStravaProxyUrl('api/v3/athlete/activities', { per_page: 10 }), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -2262,6 +2284,107 @@ ${segments.join('\n')}
               </button>
             </div>
             <button className="btn-close-modal" onClick={() => setShowLoginModal(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Strava Credentials Modal */}
+      {showStravaCredentialsModal && (
+        <div className="login-modal-overlay" style={{ zIndex: 999999 }}>
+          <div className="login-modal-card">
+            <h3>Vincular cuenta de Strava 🧡</h3>
+            <p className="login-subtitle" style={{ marginBottom: '16px', fontSize: '0.8rem', color: '#cbd5e1' }}>
+              Elige cómo deseas conectar tu cuenta de Strava:
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1' }}>Strava Client ID:</label>
+                <input 
+                  type="text" 
+                  value={stravaConfig.clientId}
+                  onChange={(e) => saveStravaConfig({ ...stravaConfig, clientId: e.target.value })}
+                  placeholder="Pega tu Client ID de Strava"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: '#222',
+                    color: 'white',
+                    fontSize: '0.8rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1' }}>Strava Client Secret:</label>
+                <input 
+                  type="password" 
+                  value={stravaConfig.clientSecret}
+                  onChange={(e) => saveStravaConfig({ ...stravaConfig, clientSecret: e.target.value })}
+                  placeholder="Pega tu Client Secret de Strava"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: '#222',
+                    color: 'white',
+                    fontSize: '0.8rem'
+                  }}
+                />
+              </div>
+              
+              <p style={{ fontSize: '0.65rem', color: '#cbd5e1', lineHeight: '1.4', margin: 0 }}>
+                * Para vincular tu Strava real, crea una App API en <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-orange)', fontWeight: 'bold', textDecoration: 'underline' }}>strava.com/settings/api</a> con dominio de callback: <strong>{window.location.host}</strong>.
+              </p>
+            </div>
+
+            <button
+              onClick={handleStartRealStravaAuth}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #fc5200, #ff7e40)',
+                color: 'white',
+                border: 'none',
+                padding: '12px',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                marginBottom: '8px',
+                boxShadow: '0 4px 12px rgba(252, 82, 0, 0.25)'
+              }}
+            >
+              🚀 Conectar Strava Real
+            </button>
+
+            <button
+              onClick={handleStartMockStravaAuth}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: 'white',
+                padding: '10px',
+                borderRadius: '8px',
+                fontWeight: '500',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                marginBottom: '16px'
+              }}
+            >
+              ⚡ Usar Cuenta Simulada (Gratis/Prueba)
+            </button>
+
+            <button 
+              className="btn-close-modal" 
+              onClick={() => setShowStravaCredentialsModal(false)}
+              style={{ width: '100%', background: 'transparent', border: '1px solid #555', color: '#ccc', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       )}
