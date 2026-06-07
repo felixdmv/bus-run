@@ -37,8 +37,27 @@ export default async function handler(req, res) {
     headers: headers,
   };
 
-  if (req.method === 'POST' && req.body) {
-    fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+  if (req.method === 'POST') {
+    let bodyObj = {};
+    if (req.body) {
+      try {
+        bodyObj = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      } catch (e) {
+        bodyObj = req.body;
+      }
+    }
+
+    // Intercept token exchange / refresh and inject server-side credentials
+    if (path === 'oauth/token') {
+      if (process.env.STRAVA_CLIENT_ID) {
+        bodyObj.client_id = process.env.STRAVA_CLIENT_ID;
+      }
+      if (process.env.STRAVA_CLIENT_SECRET) {
+        bodyObj.client_secret = process.env.STRAVA_CLIENT_SECRET;
+      }
+    }
+
+    fetchOptions.body = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
   }
 
   try {

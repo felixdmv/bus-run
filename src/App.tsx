@@ -324,10 +324,11 @@ export default function App() {
 
   // Strava integration state
   const [stravaConfig, setStravaConfig] = useState(() => {
+    const envClientId = import.meta.env.VITE_STRAVA_CLIENT_ID || '';
     try {
       const saved = localStorage.getItem('busrun-strava-config');
-      return saved ? JSON.parse(saved) : {
-        clientId: '',
+      const parsed = saved ? JSON.parse(saved) : {
+        clientId: envClientId,
         clientSecret: '',
         connected: false,
         athleteName: '',
@@ -336,8 +337,21 @@ export default function App() {
         refreshToken: '',
         expiresAt: 0
       };
+      if (!parsed.clientId && envClientId) {
+        parsed.clientId = envClientId;
+      }
+      return parsed;
     } catch(e) {
-      return { clientId: '', clientSecret: '', connected: false, athleteName: '', athleteId: '', accessToken: '', refreshToken: '', expiresAt: 0 };
+      return {
+        clientId: envClientId,
+        clientSecret: '',
+        connected: false,
+        athleteName: '',
+        athleteId: '',
+        accessToken: '',
+        refreshToken: '',
+        expiresAt: 0
+      };
     }
   });
   const [notifications, setNotifications] = useState<{ id: string; brand: string; msg: string; type: 'info' | 'success' }[]>([]);
@@ -725,7 +739,8 @@ export default function App() {
             if (saved) currentConfig = JSON.parse(saved);
           } catch(e){}
 
-          if (!currentConfig.clientId || !currentConfig.clientSecret) {
+          const clientIdToUse = currentConfig.clientId || import.meta.env.VITE_STRAVA_CLIENT_ID;
+          if (!clientIdToUse) {
             const mockConfig = {
               ...currentConfig,
               connected: true,
@@ -742,8 +757,8 @@ export default function App() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                client_id: currentConfig.clientId,
-                client_secret: currentConfig.clientSecret,
+                client_id: clientIdToUse,
+                client_secret: currentConfig.clientSecret || '',
                 code: code,
                 grant_type: 'authorization_code'
               })
@@ -755,8 +770,8 @@ export default function App() {
 
             const data = await response.json();
             const newConfig = {
-              clientId: currentConfig.clientId,
-              clientSecret: currentConfig.clientSecret,
+              clientId: clientIdToUse,
+              clientSecret: currentConfig.clientSecret || '',
               connected: true,
               athleteName: `${data.athlete.firstname} ${data.athlete.lastname}`,
               athleteId: String(data.athlete.id),
@@ -1202,13 +1217,14 @@ export default function App() {
   };
 
   const handleStartRealStravaAuth = () => {
-    if (!stravaConfig.clientId || !stravaConfig.clientSecret) {
-      alert("Por favor, introduce tu Client ID y Client Secret de Strava.");
+    const clientId = import.meta.env.VITE_STRAVA_CLIENT_ID || stravaConfig.clientId;
+    if (!clientId) {
+      alert("No se ha configurado el Client ID de Strava en las variables de entorno.");
       return;
     }
     setShowStravaCredentialsModal(false);
     const redirectUri = window.location.origin;
-    const url = `https://www.strava.com/oauth/authorize?client_id=${stravaConfig.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=activity:read_all&approval_prompt=auto`;
+    const url = `https://www.strava.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=activity:read_all&approval_prompt=auto`;
     window.location.href = url;
   };
 
@@ -1246,12 +1262,13 @@ export default function App() {
       return config.accessToken;
     }
     try {
+      const clientIdToUse = config.clientId || import.meta.env.VITE_STRAVA_CLIENT_ID || '';
       const response = await fetch(getStravaProxyUrl('oauth/token'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client_id: config.clientId,
-          client_secret: config.clientSecret,
+          client_id: clientIdToUse,
+          client_secret: '',
           grant_type: 'refresh_token',
           refresh_token: config.refreshToken
         })
@@ -1949,7 +1966,7 @@ ${gpxSegments}
     addNotification('Strava', 'Buscando actividades nuevas en Strava...', 'info');
 
     // MOCK SYNC FLOW
-    if (stravaConfig.accessToken === 'mock-token' || !stravaConfig.clientSecret) {
+    if (stravaConfig.accessToken === 'mock-token') {
       setTimeout(() => {
         const uncompletedLine = aggregatedLines.find(line => !completed[`burgos_${line.ref}`]) || aggregatedLines[0];
         if (!uncompletedLine) {
@@ -2415,54 +2432,10 @@ ${segments.join('\n')}
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>Paso 2: Conectar Strava 🧡</h2>
               <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.6', marginBottom: '20px' }}>
-                BusRun sincroniza tus recorridos de Strava. Conecta tu API de Strava o inicia la simulación de prueba.
+                BusRun sincroniza tus recorridos de Strava. Conecta tu cuenta de Strava o inicia la simulación de prueba para empezar.
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1' }}>Strava Client ID:</label>
-                  <input 
-                    type="text" 
-                    value={stravaConfig.clientId || ''}
-                    onChange={(e) => saveStravaConfig({ ...stravaConfig, clientId: e.target.value })}
-                    placeholder="Pega tu Client ID de Strava"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      background: '#0f172a',
-                      color: 'white',
-                      fontSize: '0.8rem'
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1' }}>Strava Client Secret:</label>
-                  <input 
-                    type="password" 
-                    value={stravaConfig.clientSecret || ''}
-                    onChange={(e) => saveStravaConfig({ ...stravaConfig, clientSecret: e.target.value })}
-                    placeholder="Pega tu Client Secret de Strava"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      background: '#0f172a',
-                      color: 'white',
-                      fontSize: '0.8rem'
-                    }}
-                  />
-                </div>
-                
-                <p style={{ fontSize: '0.65rem', color: '#94a3b8', lineHeight: '1.4', margin: 0 }}>
-                  * Configura tu App API en <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-orange)', fontWeight: 'bold', textDecoration: 'underline' }}>strava.com/settings/api</a> con dominio de callback: <strong>{window.location.host}</strong>.
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginBottom: '16px' }}>
                 <button
                   onClick={handleStartRealStravaAuth}
                   style={{
@@ -2514,7 +2487,8 @@ ${segments.join('\n')}
                 <button
                   onClick={() => {
                     localStorage.setItem('busrun-strava-skipped', 'true');
-                    setOnboardingCompleted(false);
+                    // Force refresh by setting state
+                    setStravaConfig({ ...stravaConfig });
                   }}
                   style={{
                     width: '100%',
@@ -2977,53 +2951,9 @@ ${segments.join('\n')}
         <div className="login-modal-overlay" style={{ zIndex: 999999 }}>
           <div className="login-modal-card">
             <h3>Vincular cuenta de Strava 🧡</h3>
-            <p className="login-subtitle" style={{ marginBottom: '16px', fontSize: '0.8rem', color: '#cbd5e1' }}>
-              Elige cómo deseas conectar tu cuenta de Strava:
+            <p className="login-subtitle" style={{ marginBottom: '20px', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
+              Elige cómo deseas conectar tu cuenta de Strava con BusRun:
             </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1' }}>Strava Client ID:</label>
-                <input 
-                  type="text" 
-                  value={stravaConfig.clientId}
-                  onChange={(e) => saveStravaConfig({ ...stravaConfig, clientId: e.target.value })}
-                  placeholder="Pega tu Client ID de Strava"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: '#222',
-                    color: 'white',
-                    fontSize: '0.8rem'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1' }}>Strava Client Secret:</label>
-                <input 
-                  type="password" 
-                  value={stravaConfig.clientSecret}
-                  onChange={(e) => saveStravaConfig({ ...stravaConfig, clientSecret: e.target.value })}
-                  placeholder="Pega tu Client Secret de Strava"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: '#222',
-                    color: 'white',
-                    fontSize: '0.8rem'
-                  }}
-                />
-              </div>
-              
-              <p style={{ fontSize: '0.65rem', color: '#cbd5e1', lineHeight: '1.4', margin: 0 }}>
-                * Para vincular tu Strava real, crea una App API en <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-orange)', fontWeight: 'bold', textDecoration: 'underline' }}>strava.com/settings/api</a> con dominio de callback: <strong>{window.location.host}</strong>.
-              </p>
-            </div>
 
             <button
               onClick={handleStartRealStravaAuth}
@@ -3037,7 +2967,7 @@ ${segments.join('\n')}
                 fontWeight: 'bold',
                 fontSize: '0.85rem',
                 cursor: 'pointer',
-                marginBottom: '8px',
+                marginBottom: '10px',
                 boxShadow: '0 4px 12px rgba(252, 82, 0, 0.25)'
               }}
             >
@@ -3059,7 +2989,7 @@ ${segments.join('\n')}
                 marginBottom: '16px'
               }}
             >
-              ⚡ Usar Cuenta Simulada (Gratis/Prueba)
+              ⚡ Usar Cuenta Simulada (Modo de Prueba)
             </button>
 
             <button 
@@ -4860,27 +4790,9 @@ ${segments.join('\n')}
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <label style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 'bold' }}>Strava Client ID:</label>
-                        <input 
-                          type="text" 
-                          value={stravaConfig.clientId}
-                          onChange={(e) => saveStravaConfig({ ...stravaConfig, clientId: e.target.value })}
-                          placeholder="Pega tu Client ID de Strava"
-                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', fontSize: '0.75rem' }}
-                        />
-                      </div>
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <label style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 'bold' }}>Strava Client Secret:</label>
-                        <input 
-                          type="password" 
-                          value={stravaConfig.clientSecret}
-                          onChange={(e) => saveStravaConfig({ ...stravaConfig, clientSecret: e.target.value })}
-                          placeholder="Pega tu Client Secret de Strava"
-                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', fontSize: '0.75rem' }}
-                        />
-                      </div>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                        Vincula tu cuenta de Strava para sincronizar de manera automática tus rodajes en Burgos.
+                      </p>
 
                       <button
                         onClick={handleConnectStrava}
@@ -4902,10 +4814,6 @@ ${segments.join('\n')}
                       >
                         🧡 Vincular cuenta de Strava
                       </button>
-
-                      <p style={{ margin: 0, fontSize: '0.65rem', color: '#94a3b8', lineHeight: '1.4' }}>
-                        * Si no configuras Client ID/Secret, pulsar en Vincular conectará una cuenta de simulación para probar el flujo gratis. Para conectar tu Strava real, crea una App API en strava.com/settings/api con dominio de callback: {window.location.host}.
-                      </p>
                     </div>
                   )}
                 </div>
