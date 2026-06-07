@@ -344,9 +344,10 @@ button {
   backdrop-filter: blur(4px);
   z-index: 10000;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 24px;
+  padding: 40px 24px;
+  overflow-y: auto;
 }
 
 .login-modal-card {

@@ -157,14 +157,14 @@ function getCoordsForActivity(act: UserActivity, busLines: LineRoute[]): [number
   return [];
 }
 
-// Mini Leaflet Map for Feed Cards
-function MiniFeedMap({ activityId, coords, color = "#fc5200" }: { activityId: string; coords: [number, number][]; color?: string }) {
+function MiniFeedMap({ activityId, coords, color = "#fc5200", onClick }: { activityId: string; coords: [number, number][]; color?: string; onClick?: () => void }) {
   if (!coords || coords.length === 0) return null;
   const center = coords[Math.floor(coords.length / 2)];
   
   return (
     <div 
       className="activity-mini-map-wrapper"
+      onClick={onClick}
       style={{ 
         height: '180px', 
         borderRadius: '12px', 
@@ -172,7 +172,8 @@ function MiniFeedMap({ activityId, coords, color = "#fc5200" }: { activityId: st
         marginTop: '12px',
         border: '1px solid rgba(0,0,0,0.1)',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        cursor: onClick ? 'pointer' : 'default'
       }}
     >
       <MapContainer 
@@ -191,6 +192,17 @@ function MiniFeedMap({ activityId, coords, color = "#fc5200" }: { activityId: st
         />
         <Polyline positions={coords} color={color} weight={5} opacity={0.85} />
       </MapContainer>
+      {onClick && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+          background: 'transparent'
+        }} />
+      )}
     </div>
   );
 }
@@ -249,6 +261,53 @@ interface UserProfile {
   bio: string;
   isTestingMode?: boolean;
 }
+
+const renderAvatar = (avatarString: string, className?: string, onClick?: () => void, tooltip?: string) => {
+  const avatar = avatarString || '🏃‍♂️';
+  const isUrl = avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:image/');
+  
+  if (isUrl) {
+    return (
+      <img 
+        src={avatar} 
+        alt="Avatar" 
+        className={className} 
+        onClick={onClick} 
+        title={tooltip}
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          borderRadius: '50%', 
+          objectFit: 'cover', 
+          cursor: onClick ? 'pointer' : 'default',
+          border: '2px solid rgba(255, 255, 255, 0.2)' 
+        }} 
+      />
+    );
+  }
+  
+  return (
+    <div 
+      className={className} 
+      onClick={onClick}
+      title={tooltip}
+      style={{ 
+        cursor: onClick ? 'pointer' : 'default', 
+        fontSize: className?.includes('large') ? '2.5rem' : '1.3rem',
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        width: '100%', 
+        height: '100%',
+        borderRadius: '50%',
+        background: 'rgba(255,255,255,0.05)',
+        border: '2px solid rgba(255, 255, 255, 0.1)'
+      }}
+    >
+      {avatar}
+    </div>
+  );
+};
 
 const getStravaProxyUrl = (path: string, queryParams: Record<string, string | number> = {}) => {
   const base = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -358,7 +417,30 @@ export default function App() {
 
   const [gpxResult, setGpxResult] = useState<{ success: boolean; msg: string; matchPercent?: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
   const [uploadActivityType, setUploadActivityType] = useState<'running' | 'walking'>('running');
+
+  const triggerAvatarChange = () => {
+    if (avatarFileInputRef.current) {
+      avatarFileInputRef.current.click();
+    }
+  };
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("La imagen es demasiado grande. Por favor, selecciona una foto menor a 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Url = reader.result as string;
+      handleProfileChange('avatar', base64Url);
+      addNotification('Perfil', '¡Foto de perfil actualizada con éxito!', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Interactive custom track map viewing (e.g. view other athlete's tracks)
   const [activeMapActivity, setActiveMapActivity] = useState<{
@@ -560,6 +642,19 @@ export default function App() {
       localStorage.setItem(STORAGE_FEED_KEY, JSON.stringify(defaultFeed));
     }
   }, []);
+
+  // Lock body scroll when a modal is open
+  useEffect(() => {
+    const isModalOpen = showSettingsModal || !!selectedAthleteId || showChatModal;
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showSettingsModal, selectedAthleteId, showChatModal]);
 
   // PWA Install Event Handler
   useEffect(() => {
@@ -802,9 +897,23 @@ export default function App() {
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(newProfile));
   };
 
-  const handleProfileChange = (key: keyof UserProfile, val: any) => {
+  const handleProfileChange = async (key: keyof UserProfile, val: any) => {
     const updated = { ...userProfile, [key]: val };
     saveProfile(updated);
+
+    if (supabase && updated.loggedIn && updated.id !== 'anonymous') {
+      const { error } = await supabase.from('profiles').upsert({
+        id: updated.id,
+        email: updated.email,
+        name: updated.name,
+        avatar: updated.avatar,
+        bio: updated.bio,
+        location: updated.location
+      });
+      if (error) {
+        console.error('Error updating profile in Supabase:', error);
+      }
+    }
   };
 
   const saveStravaConfig = (newConfig: typeof stravaConfig) => {
@@ -2780,7 +2889,9 @@ ${segments.join('\n')}
               <aside className="feed-sidebar">
                 {/* Profile overview card */}
                 <div className="sidebar-card profile-preview-card">
-                  <div className="avatar-preview">{userProfile.avatar}</div>
+                  <div className="avatar-preview">
+                    {renderAvatar(userProfile.avatar, 'avatar-preview', triggerAvatarChange, 'Haz clic para cambiar tu foto de perfil')}
+                  </div>
                   <div className="info-preview">
                     <h3>{userProfile.name}</h3>
                     <p className="city-label">Progreso Global: {globalCompletionPercentage.toFixed(0)}%</p>
@@ -2860,43 +2971,43 @@ ${segments.join('\n')}
                 {/* Live GPS Recording HUD and Starter */}
                 <div className="feed-header-flex-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
                   {/* Quick Access Connection Center */}
-                  <div className="quick-connect-center card-glow" style={{
-                    background: 'var(--brand-dark-soft)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '16px',
-                    padding: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    marginBottom: '16px'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🔗 Conectividad Rápida</span>
-                      <span style={{ fontSize: '1.2rem' }}>⚡</span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                      {/* Google Connection Button */}
-                      <div style={{
-                        flex: 1,
-                        minWidth: '140px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        fontSize: '0.8rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        color: '#10b981',
-                        fontWeight: '500',
-                        justifyContent: 'center'
-                      }}>
-                        👤 {userProfile.name} (Conectado)
+                  {!stravaConfig.connected && (
+                    <div className="quick-connect-center card-glow" style={{
+                      background: 'var(--brand-dark-soft)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '16px',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      marginBottom: '16px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🔗 Conectividad Rápida</span>
+                        <span style={{ fontSize: '1.2rem' }}>⚡</span>
                       </div>
 
-                      {/* Strava Connection Button */}
-                      {!stravaConfig.connected ? (
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        {/* Google Connection Button */}
+                        <div style={{
+                          flex: 1,
+                          minWidth: '140px',
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          color: '#10b981',
+                          fontWeight: '500',
+                          justifyContent: 'center'
+                        }}>
+                          👤 {userProfile.name} (Conectado)
+                        </div>
+
+                        {/* Strava Connection Button */}
                         <button
                           onClick={handleConnectStrava}
                           style={{
@@ -2919,31 +3030,9 @@ ${segments.join('\n')}
                         >
                           🧡 Vincular Strava
                         </button>
-                      ) : (
-                        <button
-                          onClick={handleSyncStrava}
-                          style={{
-                            flex: 1,
-                            minWidth: '140px',
-                            background: 'rgba(252, 82, 0, 0.1)',
-                            border: '1px solid rgba(252, 82, 0, 0.3)',
-                            color: '#fc5200',
-                            padding: '10px 14px',
-                            borderRadius: '8px',
-                            fontWeight: 'bold',
-                            fontSize: '0.8rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px'
-                          }}
-                        >
-                          🔄 Sincronizar Strava
-                        </button>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Daily Challenge Card */}
                   <div className="daily-challenge-card card-glow" style={{ background: 'linear-gradient(135deg, rgba(252, 82, 0, 0.1) 0%, rgba(15, 23, 42, 0.95) 100%)', border: '1px solid rgba(252,82,0,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', gap: '16px', alignItems: 'center' }}>
@@ -3051,7 +3140,7 @@ ${segments.join('\n')}
                     <article key={act.id} className="activity-card">
                       <div className="activity-header">
                         <div className="act-user">
-                          <div className="act-avatar">{act.userAvatar}</div>
+                          <div className="act-avatar">{renderAvatar(act.userAvatar, 'act-avatar')}</div>
                           <div>
                             <h4 
                               style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
@@ -3109,8 +3198,32 @@ ${segments.join('\n')}
                           Verificación GPX: <strong>{act.matchPercent}% coincidencia</strong>
                         </div>
 
-                        {/* Read-only Mini Map of the route */}
-                        <MiniFeedMap activityId={act.id} coords={getCoordsForActivity(act, loadedBusLines)} color={act.lineRef === 'LIBRE' ? '#0284c7' : '#fc5200'} />
+                        {/* Read-only Mini Map of the route (Clickable to explore) */}
+                        <MiniFeedMap 
+                          activityId={act.id} 
+                          coords={getCoordsForActivity(act, loadedBusLines)} 
+                          color={act.lineRef === 'LIBRE' ? '#0284c7' : '#fc5200'} 
+                          onClick={() => {
+                            if (act.coords && act.coords.length > 0) {
+                              setActiveMapActivity({
+                                name: act.lineName,
+                                userName: act.userName,
+                                coords: act.coords,
+                                isFreeRun: act.lineRef === 'LIBRE'
+                              });
+                              setActiveTab('map');
+                            } else {
+                              const l = loadedBusLines.find(x => x.ref === act.lineRef);
+                              if (l) {
+                                setSelectedLineId(l.id);
+                                setActiveMapActivity(null);
+                                setActiveTab('map');
+                              } else {
+                                alert("No hay track GPS guardado para esta actividad antigua.");
+                              }
+                            }
+                          }}
+                        />
                       </div>
 
                       <div className="activity-footer">
@@ -3120,32 +3233,6 @@ ${segments.join('\n')}
                             onClick={() => handleLikeActivity(act.id)}
                           >
                             👍 Me Gusta ({act.likes})
-                          </button>
-                          <button 
-                            className="btn-details"
-                            style={{ background: 'transparent', border: '1px solid #fc5200', color: '#fc5200', padding: '6px 12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.8rem', cursor: 'pointer' }}
-                            onClick={() => {
-                              if (act.coords && act.coords.length > 0) {
-                                setActiveMapActivity({
-                                  name: act.lineName,
-                                  userName: act.userName,
-                                  coords: act.coords,
-                                  isFreeRun: act.lineRef === 'LIBRE'
-                                });
-                                setActiveTab('map');
-                              } else {
-                                const l = loadedBusLines.find(x => x.ref === act.lineRef);
-                                if (l) {
-                                  setSelectedLineId(l.id);
-                                  setActiveMapActivity(null);
-                                  setActiveTab('map');
-                                } else {
-                                  alert("No hay track GPS guardado para esta actividad antigua.");
-                                }
-                              }
-                            }}
-                          >
-                            🗺️ Explorar Mapa
                           </button>
                           <span className="comments-count">💬 {act.comments.length} Comentarios</span>
                         </div>
@@ -3632,7 +3719,9 @@ ${segments.join('\n')}
                 </button>
 
                 <div className="profile-primary-row">
-                  <div className="profile-avatar-large">{userProfile.avatar}</div>
+                  <div className="profile-avatar-large">
+                    {renderAvatar(userProfile.avatar, 'profile-avatar-large', triggerAvatarChange, 'Haz clic para cambiar tu foto de perfil')}
+                  </div>
                   <div className="profile-main-meta">
                     <div className="profile-name-badge">
                       <h2>{userProfile.name}</h2>
@@ -3674,43 +3763,43 @@ ${segments.join('\n')}
               </section>
 
               {/* Quick Connection center inside the Profile tab */}
-              <div className="quick-connect-center card-glow" style={{
-                background: 'var(--brand-dark-soft)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '16px',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🔗 Conectividad Rápida</span>
-                  <span style={{ fontSize: '1.2rem' }}>⚙️</span>
-                </div>
+              {!stravaConfig.connected && (
+                <div className="quick-connect-center card-glow" style={{
+                  background: 'var(--brand-dark-soft)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🔗 Conectividad Rápida</span>
+                    <span style={{ fontSize: '1.2rem' }}>⚙️</span>
+                  </div>
 
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {/* Google Connection Button */}
-                      <div style={{
-                        flex: 1,
-                        minWidth: '140px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        fontSize: '0.8rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        color: '#10b981',
-                        fontWeight: '500',
-                        justifyContent: 'center'
-                      }}>
-                        👤 {userProfile.name} (Conectado)
-                      </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {/* Google Connection Button */}
+                    <div style={{
+                      flex: 1,
+                      minWidth: '140px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#10b981',
+                      fontWeight: '500',
+                      justifyContent: 'center'
+                    }}>
+                      👤 {userProfile.name} (Conectado)
+                    </div>
 
-                  {/* Strava Connection Button */}
-                  {!stravaConfig.connected ? (
+                    {/* Strava Connection Button */}
                     <button
                       onClick={handleConnectStrava}
                       style={{
@@ -3733,31 +3822,9 @@ ${segments.join('\n')}
                     >
                       🧡 Vincular Strava
                     </button>
-                  ) : (
-                    <button
-                      onClick={handleSyncStrava}
-                      style={{
-                        flex: 1,
-                        minWidth: '140px',
-                        background: 'rgba(252, 82, 0, 0.1)',
-                        border: '1px solid rgba(252, 82, 0, 0.3)',
-                        color: '#fc5200',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        fontWeight: 'bold',
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      🔄 Sincronizar Strava
-                    </button>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Ranks */}
               <section className="profile-medals-section">
@@ -3955,7 +4022,7 @@ ${segments.join('\n')}
                       const isFav = !!favoriteAthletes[ath.id];
                       return (
                         <div key={ath.id} className="athlete-card recommended-card" style={{ cursor: 'pointer', border: '1px dashed rgba(252, 82, 0, 0.4)', background: 'rgba(252, 82, 0, 0.05)' }} onClick={() => setSelectedAthleteId(ath.id)}>
-                          <span className="athlete-avatar">{ath.avatar}</span>
+                          {renderAvatar(ath.avatar, 'athlete-avatar')}
                           <div className="athlete-meta">
                             <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               {ath.name}
@@ -3987,7 +4054,7 @@ ${segments.join('\n')}
                   const isFav = !!favoriteAthletes[ath.id];
                   return (
                     <div key={ath.id} className="athlete-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedAthleteId(ath.id)}>
-                      <span className="athlete-avatar">{ath.avatar}</span>
+                      {renderAvatar(ath.avatar, 'athlete-avatar')}
                       <div className="athlete-meta">
                         <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {ath.name}
@@ -4047,7 +4114,7 @@ ${segments.join('\n')}
             </div>
 
             {/* GPS Tracker Live Map */}
-            <div style={{ height: '220px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 1, marginBottom: '16px' }}>
+            <div style={{ height: '220px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 1, marginBottom: '16px', cursor: 'pointer' }} onClick={() => setActiveTab('map')}>
               <MapContainer 
                 center={userLocation || [42.3431, -3.7009]} 
                 zoom={15} 
@@ -4775,6 +4842,15 @@ ${segments.join('\n')}
           🚀 ¡Nueva versión disponible! Toca para actualizar
         </div>
       )}
+
+      {/* Hidden input for custom profile picture uploading */}
+      <input 
+        type="file" 
+        ref={avatarFileInputRef} 
+        onChange={handleAvatarFileChange} 
+        accept="image/*" 
+        style={{ display: 'none' }} 
+      />
     </div>
   );
 }
