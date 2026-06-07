@@ -1924,10 +1924,17 @@ export default function App() {
       .map(([lat, lon, ele]) => `      <trkpt lat="${lat}" lon="${lon}"><ele>${ele}</ele></trkpt>`)
       .join('\n');
 
+    // Clean name from special characters and escape HTML/XML characters
+    const cleanGpxName = route.name
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/[→←]/g, '-');
+
     const gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="BusRun">
   <trk>
-    <name>${route.name}</name>
+    <name>${cleanGpxName}</name>
     <trkseg>
 ${gpxSegments}
     </trkseg>
@@ -1938,7 +1945,15 @@ ${gpxSegments}
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${route.name.replace(/\s+/g, '_')}.gpx`;
+    
+    // Clean filename to be fully compatible with watches/phone systems (FAT32 compatible)
+    const cleanFilename = route.name
+      .replace(/[→←]/g, '-')
+      .replace(/[^a-zA-Z0-9_\-\s]/g, '')
+      .trim()
+      .replace(/\s+/g, '_');
+      
+    link.download = `${cleanFilename}.gpx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -2574,6 +2589,12 @@ ${segments.join('\n')}
     );
   }
 
+  const isCityTransportSupported = 
+    (activeCity === 'burgos' && activeTransport === 'bus') ||
+    (activeCity === 'madrid' && activeTransport === 'metro') ||
+    (activeCity === 'barcelona' && activeTransport === 'metro') ||
+    (activeCity === 'bilbao' && activeTransport === 'metro');
+
   return (
     <div className="app-shell">
       {/* Toast Notifications */}
@@ -2865,7 +2886,7 @@ ${segments.join('\n')}
         </div>
       )}
 
-      {activeCity !== 'burgos' || activeTransport !== 'bus' ? (
+      {!isCityTransportSupported ? (
         <section className="preview-city-section card-glow">
           <div className="preview-icon">🚧</div>
           <h2>Conectando Red de Transportes...</h2>
@@ -3992,6 +4013,50 @@ ${segments.join('\n')}
                   </div>
                 </section>
               </div>
+
+              {/* Buy Me A Coffee Contribution Banner */}
+              <div style={{
+                background: 'rgba(252, 82, 0, 0.08)',
+                border: '1px solid rgba(252, 82, 0, 0.25)',
+                borderRadius: '16px',
+                padding: '20px',
+                textAlign: 'center',
+                marginTop: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '20px'
+              }}>
+                <div style={{ fontSize: '2rem' }}>☕</div>
+                <div>
+                  <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', color: 'white' }}>¿Te gusta BusRun?</h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#cbd5e1', lineHeight: '1.4', maxWidth: '380px' }}>
+                    Este es un proyecto open-source de carrera urbana. Si quieres apoyar el coste de servidores y el desarrollo, ¡invítame a un café!
+                  </p>
+                </div>
+                <a 
+                  href="https://buymeacoffee.com/felixbusrun" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: '#FFDD00',
+                    color: '#000000',
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    fontWeight: 'bold',
+                    fontSize: '0.85rem',
+                    textDecoration: 'none',
+                    boxShadow: '0 4px 12px rgba(255, 221, 0, 0.2)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🟡 Invítame a un café
+                </a>
+              </div>
             </div>
           )}
 
@@ -4507,6 +4572,7 @@ ${segments.join('\n')}
                     <option value="burgos">Burgos</option>
                     <option value="madrid">Madrid</option>
                     <option value="barcelona">Barcelona</option>
+                    <option value="bilbao">Bilbao</option>
                   </select>
                 </div>
 
