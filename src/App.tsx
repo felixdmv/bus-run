@@ -2420,6 +2420,123 @@ ${segments.join('\n')}
               <section className="feed-list">
                 {/* Live GPS Recording HUD and Starter */}
                 <div className="feed-header-flex-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                  {/* Quick Access Connection Center */}
+                  <div className="quick-connect-center card-glow" style={{
+                    background: 'var(--brand-dark-soft)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '16px',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    marginBottom: '16px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🔗 Conectividad Rápida</span>
+                      <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      {/* Google Connection Button */}
+                      {!userProfile.loggedIn ? (
+                        <button
+                          onClick={() => setShowLoginModal(true)}
+                          style={{
+                            flex: 1,
+                            minWidth: '140px',
+                            background: 'white',
+                            color: '#222',
+                            border: 'none',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                          }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: '4px' }}>
+                            <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7l2.76 2.13c1.61-1.48 2.53-3.66 2.53-6.22z"/>
+                            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.76-2.13c-.76.51-1.74.82-3.2.82-2.46 0-4.55-1.66-5.3-3.9L.94 12.8C2.42 15.8 5.48 18 9 18z"/>
+                            <path fill="#FBBC05" d="M3.7 10.61c-.19-.57-.3-1.18-.3-1.8s.11-1.23.3-1.8L.94 4.89C.34 6.13 0 7.53 0 9s.34 2.87.94 4.11l2.76-2.5z"/>
+                            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.47.89 11.43 0 9 0 5.48 0 2.42 2.2.94 5.21l2.76 2.5c.75-2.24 2.84-3.9 5.3-3.9z"/>
+                          </svg>
+                          Acceder con Google
+                        </button>
+                      ) : (
+                        <div style={{
+                          flex: 1,
+                          minWidth: '140px',
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          color: '#10b981',
+                          fontWeight: '500',
+                          justifyContent: 'center'
+                        }}>
+                          👤 {userProfile.name}
+                        </div>
+                      )}
+
+                      {/* Strava Connection Button */}
+                      {!stravaConfig.connected ? (
+                        <button
+                          onClick={handleConnectStrava}
+                          style={{
+                            flex: 1,
+                            minWidth: '140px',
+                            background: 'linear-gradient(135deg, #fc5200, #ff7e40)',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            boxShadow: '0 4px 12px rgba(252, 82, 0, 0.25)'
+                          }}
+                        >
+                          🧡 Vincular Strava
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleSyncStrava}
+                          style={{
+                            flex: 1,
+                            minWidth: '140px',
+                            background: 'rgba(252, 82, 0, 0.1)',
+                            border: '1px solid rgba(252, 82, 0, 0.3)',
+                            color: '#fc5200',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          🔄 Sincronizar Strava
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Daily Challenge Card */}
                   <div className="daily-challenge-card card-glow" style={{ background: 'linear-gradient(135deg, rgba(252, 82, 0, 0.1) 0%, rgba(15, 23, 42, 0.95) 100%)', border: '1px solid rgba(252,82,0,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', gap: '16px', alignItems: 'center' }}>
                     <div style={{ fontSize: '2.5rem' }}>⚔️</div>
@@ -3148,7 +3265,122 @@ ${segments.join('\n')}
                 </div>
               </section>
 
-              {/* Wearable syncing and profile configurations moved to settings modal */}
+              {/* Quick Connection center inside the Profile tab */}
+              <div className="quick-connect-center card-glow" style={{
+                background: 'var(--brand-dark-soft)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '16px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                marginBottom: '20px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🔗 Conectividad Rápida</span>
+                  <span style={{ fontSize: '1.2rem' }}>⚙️</span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {/* Google Connection Button */}
+                  {!userProfile.loggedIn ? (
+                    <button
+                      onClick={() => setShowLoginModal(true)}
+                      style={{
+                        flex: 1,
+                        minWidth: '140px',
+                        background: 'white',
+                        color: '#222',
+                        border: 'none',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        fontWeight: 'bold',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: '4px' }}>
+                        <path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.47h4.84c-.21 1.12-.84 2.07-1.79 2.7l2.76 2.13c1.61-1.48 2.53-3.66 2.53-6.22z"/>
+                        <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.76-2.13c-.76.51-1.74.82-3.2.82-2.46 0-4.55-1.66-5.3-3.9L.94 12.8C2.42 15.8 5.48 18 9 18z"/>
+                        <path fill="#FBBC05" d="M3.7 10.61c-.19-.57-.3-1.18-.3-1.8s.11-1.23.3-1.8L.94 4.89C.34 6.13 0 7.53 0 9s.34 2.87.94 4.11l2.76-2.5z"/>
+                        <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.47.89 11.43 0 9 0 5.48 0 2.42 2.2.94 5.21l2.76 2.5c.75-2.24 2.84-3.9 5.3-3.9z"/>
+                      </svg>
+                      Acceder con Google
+                    </button>
+                  ) : (
+                    <div style={{
+                      flex: 1,
+                      minWidth: '140px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: '#10b981',
+                      fontWeight: '500',
+                      justifyContent: 'center'
+                    }}>
+                      👤 {userProfile.name}
+                    </div>
+                  )}
+
+                  {/* Strava Connection Button */}
+                  {!stravaConfig.connected ? (
+                    <button
+                      onClick={handleConnectStrava}
+                      style={{
+                        flex: 1,
+                        minWidth: '140px',
+                        background: 'linear-gradient(135deg, #fc5200, #ff7e40)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        fontWeight: 'bold',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(252, 82, 0, 0.25)'
+                      }}
+                    >
+                      🧡 Vincular Strava
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSyncStrava}
+                      style={{
+                        flex: 1,
+                        minWidth: '140px',
+                        background: 'rgba(252, 82, 0, 0.1)',
+                        border: '1px solid rgba(252, 82, 0, 0.3)',
+                        color: '#fc5200',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        fontWeight: 'bold',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      🔄 Sincronizar Strava
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {/* Ranks */}
               <section className="profile-medals-section">
