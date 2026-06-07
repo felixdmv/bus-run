@@ -244,6 +244,7 @@ interface UserProfile {
   avatar: string;
   location: string;
   bio: string;
+  isTestingMode?: boolean;
 }
 
 const getStravaProxyUrl = (path: string, queryParams: Record<string, string | number> = {}) => {
@@ -292,13 +293,29 @@ export default function App() {
     }
     return saved || '966706651177-i57a7m33pv9kck76uhe1vdc7io8hlm6v.apps.googleusercontent.com';
   });
-  const [userProfile, setUserProfile] = useState<UserProfile>({
-    loggedIn: false,
-    name: 'Atleta Anónimo',
-    email: '',
-    avatar: '🏃‍♂️',
-    location: 'Burgos, España',
-    bio: 'Atleta de transporte urbano. Conecta tus dispositivos y empieza a correr.'
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_USER_KEY);
+      return saved ? JSON.parse(saved) : {
+        loggedIn: false,
+        name: 'Atleta Anónimo',
+        email: '',
+        avatar: '🏃‍♂️',
+        location: 'Burgos, España',
+        bio: 'Atleta de transporte urbano. Conecta tus dispositivos y empieza a correr.',
+        isTestingMode: false
+      };
+    } catch(e) {
+      return {
+        loggedIn: false,
+        name: 'Atleta Anónimo',
+        email: '',
+        avatar: '🏃‍♂️',
+        location: 'Burgos, España',
+        bio: 'Atleta de transporte urbano. Conecta tus dispositivos y empieza a correr.',
+        isTestingMode: false
+      };
+    }
   });
 
   // Strava integration state
@@ -397,6 +414,9 @@ export default function App() {
 
   // Onboarding Tutorial state
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(() => {
+    return localStorage.getItem('busrun-onboarding-completed') === 'true';
+  });
 
   // Selected Athlete for profile popup
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
@@ -634,9 +654,11 @@ export default function App() {
                 email: payload.email || '',
                 avatar: payload.picture || '👤',
                 location: 'Burgos, España',
-                bio: 'Conectado a BusRun con Google. ¡Listo para devorar las calles!'
+                bio: 'Conectado a BusRun con Google. ¡Listo para devorar las calles!',
+                isTestingMode: false
               };
               saveProfile(newProfile);
+              saveProgress({}); // Clear mock progress for real users
               addNotification('Google', `¡Sesión iniciada con éxito! Bienvenido/a, ${newProfile.name}.`, 'success');
             }
           }
@@ -651,7 +673,7 @@ export default function App() {
 
     const timer = setTimeout(initGoogle, 300);
     return () => clearTimeout(timer);
-  }, [showSettingsModal, showLoginModal, googleClientId]);
+  }, [showSettingsModal, showLoginModal, googleClientId, userProfile.loggedIn, onboardingCompleted]);
 
   // Handle Strava OAuth redirect code on startup
   useEffect(() => {
@@ -1108,9 +1130,24 @@ export default function App() {
       email: '',
       avatar: '🏃‍♂️',
       location: 'Burgos, España',
-      bio: 'Atleta de transporte urbano. Conecta tus dispositivos y empieza a correr.'
+      bio: 'Atleta de transporte urbano. Conecta tus dispositivos y empieza a correr.',
+      isTestingMode: false
     };
     saveProfile(newProfile);
+    localStorage.removeItem('busrun-onboarding-completed');
+    localStorage.removeItem('busrun-tutorial-seen');
+    localStorage.removeItem('busrun-strava-skipped');
+    saveStravaConfig({
+      clientId: '',
+      clientSecret: '',
+      connected: false,
+      athleteName: '',
+      athleteId: '',
+      accessToken: '',
+      refreshToken: '',
+      expiresAt: 0
+    });
+    setOnboardingCompleted(false);
     addNotification('Google', 'Sesión cerrada correctamente.', 'info');
   };
 
@@ -1348,14 +1385,19 @@ export default function App() {
       'Diego Cid': 'diego-cid'
     };
     return feedActivities.filter(act => {
+      // If NOT in testing mode (i.e. real user), only show own activities
+      if (!userProfile.isTestingMode) {
+        return act.userName === userProfile.name;
+      }
       if (act.userName === userProfile.name) return true;
       const aid = athleteIdMap[act.userName];
       if (aid && followedAthletes[aid]) return true;
       return false;
     });
-  }, [feedActivities, userProfile.name, followedAthletes]);
+  }, [feedActivities, userProfile.name, followedAthletes, userProfile.isTestingMode]);
 
   const recommendedAthletes = useMemo(() => {
+    if (!userProfile.isTestingMode) return []; // Hide for real users
     const followedIds = Object.keys(followedAthletes).filter(id => followedAthletes[id]);
     const friendsOfFriends = new Set<string>();
 
@@ -1369,7 +1411,7 @@ export default function App() {
     });
 
     return mockAthletesList.filter(ath => friendsOfFriends.has(ath.id) && !followedAthletes[ath.id]);
-  }, [followedAthletes]);
+  }, [followedAthletes, userProfile.isTestingMode]);
 
   const aiRecommendation = useMemo(() => {
     if (burgosBusLines.length === 0) {
@@ -1969,6 +2011,346 @@ ${segments.join('\n')}
 
   // mockAthletesList is defined globally
   const selectedAthlete = mockAthletesList.find(a => a.id === selectedAthleteId);
+
+  if (!onboardingCompleted) {
+    return (
+      <div className="onboarding-gateway-container" style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+        color: 'white',
+        padding: '24px',
+        fontFamily: "'Outfit', 'Inter', sans-serif"
+      }}>
+        {/* Toast Notifications */}
+        <div className="toasts-container" style={{ zIndex: 99999 }}>
+          {notifications.map(n => (
+            <div key={n.id} className={`toast-card ${n.type}`}>
+              <span className="toast-brand">🔔 {n.brand}</span>
+              <p>{n.msg}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="onboarding-card" style={{
+          background: 'rgba(30, 41, 59, 0.7)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderRadius: '24px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '40px 32px',
+          maxWidth: '480px',
+          width: '100%',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+          textAlign: 'center',
+          animation: 'modalScale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
+            <span style={{ fontSize: '2.4rem', background: 'linear-gradient(135deg, #ff7e40, #fc5200)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>⚡</span>
+            <h1 style={{ fontSize: '2.2rem', fontWeight: '900', letterSpacing: '-0.02em', margin: 0 }}>BusRun</h1>
+          </div>
+
+          {!userProfile.loggedIn ? (
+            /* STEP 1: LOGIN */
+            <div>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>Paso 1: Iniciar Sesión 👤</h2>
+              <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px' }}>
+                Para comenzar a registrar tus carreras y competir en el ranking de Burgos, inicia sesión de forma segura.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', width: '100%' }}>
+                {/* Official Google Button */}
+                <div id="google-signin-btn-real" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}></div>
+                
+                <div style={{ width: '100%', height: '1px', background: 'rgba(255, 255, 255, 0.1)', margin: '8px 0' }} />
+                
+                <button
+                  onClick={() => {
+                    const mockProfile = {
+                      loggedIn: true,
+                      name: 'Félix (Tester)',
+                      email: 'felix.tester@busrun.com',
+                      avatar: '🤖',
+                      location: 'Burgos, España',
+                      bio: 'Sesión de pruebas internas de BusRun. ¡Simulación activa!',
+                      isTestingMode: true
+                    };
+                    saveProfile(mockProfile);
+                    const initialProgress = {
+                      'burgos_L01': {
+                        date: new Date(Date.now() - 2 * 24 * 3600 * 1000).toLocaleDateString(),
+                        timeSeconds: 1143,
+                        type: 'running' as const,
+                        matchPercent: 94.5
+                      }
+                    };
+                    saveProgress(initialProgress);
+                    addNotification('Sistema', 'Iniciando sesión en Modo de Prueba (Interno)...', 'success');
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px dashed rgba(255, 255, 255, 0.3)',
+                    color: '#e2e8f0',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    fontWeight: '600',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  🧪 Usar Modo Prueba (Pruebas Internas)
+                </button>
+              </div>
+            </div>
+          ) : !stravaConfig.connected && localStorage.getItem('busrun-strava-skipped') !== 'true' ? (
+            /* STEP 2: LINK STRAVA */
+            <div>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>Paso 2: Conectar Strava 🧡</h2>
+              <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.6', marginBottom: '20px' }}>
+                BusRun sincroniza tus recorridos de Strava. Conecta tu API de Strava o inicia la simulación de prueba.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1' }}>Strava Client ID:</label>
+                  <input 
+                    type="text" 
+                    value={stravaConfig.clientId || ''}
+                    onChange={(e) => saveStravaConfig({ ...stravaConfig, clientId: e.target.value })}
+                    placeholder="Pega tu Client ID de Strava"
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: '#0f172a',
+                      color: 'white',
+                      fontSize: '0.8rem'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#cbd5e1' }}>Strava Client Secret:</label>
+                  <input 
+                    type="password" 
+                    value={stravaConfig.clientSecret || ''}
+                    onChange={(e) => saveStravaConfig({ ...stravaConfig, clientSecret: e.target.value })}
+                    placeholder="Pega tu Client Secret de Strava"
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: '#0f172a',
+                      color: 'white',
+                      fontSize: '0.8rem'
+                    }}
+                  />
+                </div>
+                
+                <p style={{ fontSize: '0.65rem', color: '#94a3b8', lineHeight: '1.4', margin: 0 }}>
+                  * Configura tu App API en <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-orange)', fontWeight: 'bold', textDecoration: 'underline' }}>strava.com/settings/api</a> con dominio de callback: <strong>{window.location.host}</strong>.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                <button
+                  onClick={handleStartRealStravaAuth}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #fc5200, #ff7e40)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    fontWeight: 'bold',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(252, 82, 0, 0.25)'
+                  }}
+                >
+                  🚀 Vincular Strava Real
+                </button>
+
+                <button
+                  onClick={() => {
+                    const mockConfig = {
+                      ...stravaConfig,
+                      connected: true,
+                      athleteName: userProfile.name || 'Félix (Strava Runner)',
+                      athleteId: '98765432',
+                      accessToken: 'mock-token',
+                      refreshToken: 'mock-refresh',
+                      expiresAt: Math.floor(Date.now() / 1000) + 36000
+                    };
+                    saveStravaConfig(mockConfig);
+                    handleProfileChange('isTestingMode', true);
+                    addNotification('Strava', '¡Cuenta de Strava (Simulada) vinculada con éxito!', 'success');
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: 'white',
+                    padding: '10px',
+                    borderRadius: '10px',
+                    fontWeight: '500',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🧪 Usar Cuenta Simulada (Modo de Prueba)
+                </button>
+
+                <button
+                  onClick={() => {
+                    localStorage.setItem('busrun-strava-skipped', 'true');
+                    setOnboardingCompleted(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: '1px solid #475569',
+                    color: '#94a3b8',
+                    padding: '8px',
+                    borderRadius: '10px',
+                    fontWeight: '500',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Omitir por ahora
+                </button>
+                
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#ef4444',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    marginTop: '8px',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  ← Cerrar sesión
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* STEP 3: TUTORIAL */
+            <div>
+              <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--brand-orange)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Paso 3: Tutorial de Bienvenida ({tutorialStep || 1}/5)
+              </span>
+
+              {(!tutorialStep || tutorialStep === 1) && (
+                <div>
+                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>⚡</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>¡Bienvenido/a a BusRun!</h3>
+                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
+                    BusRun es la red social deportiva de corredores urbanos. Tu misión es <strong>completar las líneas de transporte urbano</strong> corriendo o caminando por su trazado de paradas.
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 2 && (
+                <div>
+                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>🏆</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>Progresión y Rango</h3>
+                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
+                    Cada línea completada suma porcentaje a tu progresión. Pasa de ser un simple <strong>Dominguero (0%)</strong> hasta el legendario <strong>Cid Campeador (100%)</strong> a través de 10 niveles acumulables.
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 3 && (
+                <div>
+                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>🧡</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>Sincronizar con Strava</h3>
+                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
+                    Sincroniza tus actividades desde tu perfil o panel de control. Cualquier carrera que grabes con tu reloj deportivo o móvil se validará automáticamente contra la base de datos de paradas de autobús.
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 4 && (
+                <div>
+                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>📡</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>GPS en Vivo y Simulador</h3>
+                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
+                    ¿No tienes reloj? ¡Graba tu actividad en tiempo real con el GPS del móvil en el feed, o usa el <strong>simulador en vivo</strong> para probar cómo funciona desde casa!
+                  </p>
+                </div>
+              )}
+
+              {tutorialStep === 5 && (
+                <div>
+                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>🗺️</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>Mapa e Hitos Unificados</h3>
+                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
+                    En la pestaña Mapa puedes seleccionar cualquier línea, cambiar de sentido y ver la checklist de paradas completadas en tiempo real. ¡Disfruta de la experiencia urbana!
+                  </p>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '20px' }}>
+                {(tutorialStep || 1) > 1 ? (
+                  <button 
+                    onClick={() => setTutorialStep(s => s ? s - 1 : 1)}
+                    style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #475569', background: 'transparent', color: '#cbd5e1', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    Atrás
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      localStorage.setItem('busrun-tutorial-seen', 'true');
+                      localStorage.setItem('busrun-onboarding-completed', 'true');
+                      setOnboardingCompleted(true);
+                      addNotification('Social', '¡Registro completo! Todo listo para empezar.', 'success');
+                    }}
+                    style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#94a3b8', fontSize: '0.8rem', cursor: 'pointer' }}
+                  >
+                    Omitir Tutorial
+                  </button>
+                )}
+
+                {(tutorialStep || 1) < 5 ? (
+                  <button 
+                    onClick={() => setTutorialStep(s => s ? s + 1 : 5)}
+                    style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    Siguiente
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      localStorage.setItem('busrun-tutorial-seen', 'true');
+                      localStorage.setItem('busrun-onboarding-completed', 'true');
+                      setOnboardingCompleted(true);
+                      addNotification('Social', '¡Registro y tutorial completado! Bienvenido a BusRun.', 'success');
+                    }}
+                    style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--accent-green)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    ¡Comenzar! 🏁
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -4079,18 +4461,7 @@ ${segments.join('\n')}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontSize: '0.8rem', color: '#10b981' }}>✓ Conectado como <strong>{userProfile.email}</strong></span>
                       <button 
-                        onClick={() => {
-                          const cleared: UserProfile = {
-                            loggedIn: false,
-                            name: 'Atleta Anónimo',
-                            email: '',
-                            avatar: '🏃‍♂️',
-                            location: 'Burgos, España',
-                            bio: 'Atleta de transporte urbano. Conecta tus dispositivos y empieza a correr.'
-                          };
-                          saveProfile(cleared);
-                          addNotification('Google', 'Sesión cerrada.', 'info');
-                        }}
+                        onClick={handleLogout}
                         style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid #ff4d4d', color: '#ff4d4d', background: 'transparent', cursor: 'pointer', fontWeight: 'bold' }}
                       >
                         Cerrar Sesión Google
@@ -4109,9 +4480,12 @@ ${segments.join('\n')}
                               email: 'felix.garcia@gmail.com',
                               avatar: '⚡',
                               location: 'Burgos, España',
-                              bio: 'Corredor aficionado de Burgos. ¡A por todas las líneas!'
+                              bio: 'Corredor aficionado de Burgos. ¡A por todas las líneas!',
+                              isTestingMode: true
                             };
                             saveProfile(newProfile);
+                            localStorage.setItem('busrun-onboarding-completed', 'true');
+                            setOnboardingCompleted(true);
                             addNotification('Google', '¡Sesión de Félix García simulada!', 'success');
                           }}
                           style={{ padding: '6px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', cursor: 'pointer' }}
@@ -4126,9 +4500,12 @@ ${segments.join('\n')}
                               email: 'marta.runner@gmail.com',
                               avatar: '🏃‍♀️',
                               location: 'Burgos, España',
-                              bio: 'Buscando el 100% de la ciudad.'
+                              bio: 'Buscando el 100% de la ciudad.',
+                              isTestingMode: true
                             };
                             saveProfile(newProfile);
+                            localStorage.setItem('busrun-onboarding-completed', 'true');
+                            setOnboardingCompleted(true);
                             addNotification('Google', '¡Sesión de Marta Corredora simulada!', 'success');
                           }}
                           style={{ padding: '6px 10px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', cursor: 'pointer' }}
