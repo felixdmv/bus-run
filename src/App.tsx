@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { supabase } from './supabaseClient';
 
 interface Stop {
   id: string;
@@ -238,6 +239,7 @@ interface ConnectedDevice {
 }
 
 interface UserProfile {
+  id: string;
   loggedIn: boolean;
   name: string;
   email: string;
@@ -297,6 +299,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_USER_KEY);
       return saved ? JSON.parse(saved) : {
+        id: 'anonymous',
         loggedIn: false,
         name: 'Atleta Anónimo',
         email: '',
@@ -307,6 +310,7 @@ export default function App() {
       };
     } catch(e) {
       return {
+        id: 'anonymous',
         loggedIn: false,
         name: 'Atleta Anónimo',
         email: '',
@@ -417,6 +421,16 @@ export default function App() {
   const [onboardingCompleted, setOnboardingCompleted] = useState(() => {
     return localStorage.getItem('busrun-onboarding-completed') === 'true';
   });
+  
+  const [chatRecipient, setChatRecipient] = useState<{ id: string; name: string } | null>(null);
+  const [registeredAthletes, setRegisteredAthletes] = useState<any[]>([]);
+
+  const activeAthletesList = useMemo(() => {
+    if (!userProfile.isTestingMode && supabase) {
+      return registeredAthletes.filter(ath => ath.id !== userProfile.id);
+    }
+    return [...mockAthletesList, ...registeredAthletes];
+  }, [registeredAthletes, userProfile.isTestingMode, userProfile.id]);
 
   // Selected Athlete for profile popup
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
@@ -649,6 +663,7 @@ export default function App() {
             const payload = parseJwt(response.credential);
             if (payload) {
               const newProfile: UserProfile = {
+                id: payload.sub,
                 loggedIn: true,
                 name: payload.name || payload.given_name || 'Usuario Google',
                 email: payload.email || '',
@@ -660,6 +675,19 @@ export default function App() {
               saveProfile(newProfile);
               saveProgress({}); // Clear mock progress for real users
               addNotification('Google', `¡Sesión iniciada con éxito! Bienvenido/a, ${newProfile.name}.`, 'success');
+              
+              if (supabase) {
+                supabase.from('profiles').upsert({
+                  id: newProfile.id,
+                  email: newProfile.email,
+                  name: newProfile.name,
+                  avatar: newProfile.avatar,
+                  bio: newProfile.bio,
+                  location: newProfile.location
+                }).then(({ error }) => {
+                  if (error) console.error('Error in profiles upsert:', error);
+                });
+              }
             }
           }
         });
@@ -952,6 +980,7 @@ export default function App() {
       };
 
       saveFeed([newActivity, ...feedActivities]);
+      saveNewActivityToDatabase(newActivity);
       addNotification('GPS', `¡Línea ${detectedLine.ref} completada!${challengeBonusMsg}`, 'success');
       alert(`¡Actividad Guardada!\n\nLínea Detectada: ${detectedLine.ref} (${detectedLine.name.split(': ')[1] || detectedLine.name})\nDistancia: ${distanceKm.toFixed(2)} km\nTiempo: ${formatDuration(finalSeconds)}\nCoincidencia: ${bestMatchPercent}%`);
     } else {
@@ -975,6 +1004,7 @@ export default function App() {
       };
 
       saveFeed([newActivity, ...feedActivities]);
+      saveNewActivityToDatabase(newActivity);
       addNotification('GPS', `Entrenamiento Libre guardado con éxito.`, 'info');
       alert(`¡Actividad Guardada!\n\nNo coincide con ninguna línea (Máxima coincidencia: ${bestMatchPercent}%).\nGuardado como 'Entrenamiento Libre'\nDistancia: ${distanceKm.toFixed(2)} km\nTiempo: ${formatDuration(finalSeconds)}`);
     }
@@ -1076,6 +1106,7 @@ export default function App() {
           };
 
           saveFeed([newActivity, ...feedActivities]);
+          saveNewActivityToDatabase(newActivity);
           addNotification('GPS Sim', `¡Línea ${targetLine.ref} completada con simulación!${challengeBonusMsg}`, 'success');
           return [];
         });
@@ -1109,22 +1140,37 @@ export default function App() {
     setShowLoginModal(true);
   };
 
-  const handleFinishGoogleLogin = (mockName: string, mockEmail: string, mockAvatar: string) => {
+  const handleFinishGoogleLogin = async (mockName: string, mockEmail: string, mockAvatar: string) => {
+    const newId = `mock-${mockName.toLowerCase().replace(/\s+/g, '-')}`;
     const newProfile: UserProfile = {
+      id: newId,
       loggedIn: true,
       name: mockName,
       email: mockEmail,
       avatar: mockAvatar,
       location: 'Burgos, España',
-      bio: 'Corredor burgalés conectado por Google. ¡Listo para conquistar el Bulevar!'
+      bio: 'Corredor burgalés conectado por Google. ¡Listo para conquistar el Bulevar!',
+      isTestingMode: true
     };
     saveProfile(newProfile);
     setShowLoginModal(false);
     addNotification('Google', `¡Sesión iniciada como ${mockName}! Tu perfil se ha sincronizado.`, 'success');
+    
+    if (supabase) {
+      await supabase.from('profiles').upsert({
+        id: newProfile.id,
+        email: newProfile.email,
+        name: newProfile.name,
+        avatar: newProfile.avatar,
+        bio: newProfile.bio,
+        location: newProfile.location
+      });
+    }
   };
 
   const handleLogout = () => {
     const newProfile: UserProfile = {
+      id: 'anonymous',
       loggedIn: false,
       name: 'Atleta Anónimo',
       email: '',
@@ -1413,6 +1459,236 @@ export default function App() {
     return mockAthletesList.filter(ath => friendsOfFriends.has(ath.id) && !followedAthletes[ath.id]);
   }, [followedAthletes, userProfile.isTestingMode]);
 
+  const fetchFeedFromSupabase = async () => {
+    if (!supabase) return;
+    try {
+      const { data: acts, error } = await supabase
+        .from('activities')
+        .select('*, profiles:user_id(name, avatar)')
+        .order('created_at', { ascending: false });
+
+      if (acts) {
+        const { data: allComments } = await supabase.from('comments').select('*, profiles:user_id(name)');
+        const { data: allLikes } = await supabase.from('likes').select('*');
+
+        const formattedFeed: UserActivity[] = acts.map(act => {
+          const actComments = allComments
+            ? allComments
+                .filter((c: any) => c.activity_id === act.id)
+                .map((c: any) => ({
+                  id: c.id,
+                  userName: c.profiles?.name || 'Usuario',
+                  text: c.text
+                }))
+            : [];
+
+          const actLikes = allLikes ? allLikes.filter((l: any) => l.activity_id === act.id) : [];
+          const likedByMe = actLikes.some((l: any) => l.user_id === userProfile.id);
+
+          return {
+            id: act.id,
+            userName: act.profiles?.name || 'Atleta',
+            userAvatar: act.profiles?.avatar || '🏃‍♂️',
+            lineId: act.line_id || undefined,
+            lineRef: act.line_ref,
+            lineName: act.line_name,
+            distanceKm: act.distance_km,
+            elevationGain: act.elevation_gain,
+            timeSeconds: act.time_seconds,
+            date: act.date,
+            matchPercent: act.match_percent,
+            type: act.type as 'running' | 'walking',
+            likes: actLikes.length,
+            likedByMe: likedByMe,
+            comments: actComments,
+            cityId: act.city_id
+          };
+        });
+
+        setFeedActivities(formattedFeed);
+        localStorage.setItem(STORAGE_FEED_KEY, JSON.stringify(formattedFeed));
+      }
+    } catch(e) {
+      console.error('Error fetching feed from Supabase:', e);
+    }
+  };
+
+  const saveNewActivityToDatabase = async (newActivity: UserActivity) => {
+    if (supabase && userProfile.loggedIn) {
+      const { error } = await supabase.from('activities').insert({
+        id: newActivity.id,
+        user_id: userProfile.id,
+        line_id: newActivity.lineId || null,
+        line_ref: newActivity.lineRef,
+        line_name: newActivity.lineName,
+        distance_km: newActivity.distanceKm,
+        elevation_gain: newActivity.elevationGain,
+        time_seconds: newActivity.timeSeconds,
+        date: newActivity.date,
+        match_percent: newActivity.matchPercent,
+        type: newActivity.type,
+        city_id: newActivity.cityId || 'burgos'
+      });
+      if (error) console.error('Error inserting activity in Supabase:', error);
+      else {
+        fetchFeedFromSupabase();
+      }
+    }
+  };
+
+  const handleToggleFollow = async (athId: string, athName: string) => {
+    const isCurrentlyFollowing = !!followedAthletes[athId];
+    setFollowedAthletes(prev => ({ ...prev, [athId]: !isCurrentlyFollowing }));
+    addNotification('Social', isCurrentlyFollowing ? `Has dejado de seguir a ${athName}.` : `¡Ahora sigues a ${athName}!`, 'info');
+    
+    if (supabase && userProfile.loggedIn) {
+      if (isCurrentlyFollowing) {
+        await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', userProfile.id)
+          .eq('following_id', athId);
+      } else {
+        await supabase
+          .from('follows')
+          .insert({
+            follower_id: userProfile.id,
+            following_id: athId
+          });
+      }
+    }
+  };
+
+  const handleSendMessage = async (textStr: string) => {
+    if (!textStr.trim()) return;
+    const recipient = chatRecipient || { id: 'marta-corredora', name: 'Marta Corredora' };
+
+    setChatMessages(prev => [
+      ...prev,
+      {
+        sender: 'me',
+        text: textStr.trim(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    ]);
+    setChatInput('');
+
+    if (supabase && userProfile.loggedIn && !(recipient.id === 'marta-corredora' && userProfile.isTestingMode)) {
+      await supabase.from('messages').insert({
+        sender_id: userProfile.id,
+        receiver_id: recipient.id,
+        text: textStr.trim()
+      });
+    } else {
+      setTimeout(() => {
+        setChatMessages(prev => [
+          ...prev,
+          {
+            sender: 'other',
+            text: '¡Totalmente de acuerdo! La clave es tomárselo con calma al principio. ¡A seguir sumando!',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+      }, 1200);
+    }
+  };
+
+  useEffect(() => {
+    const client = supabase;
+    if (client && userProfile.loggedIn) {
+      fetchFeedFromSupabase();
+      
+      const fetchProfiles = async () => {
+        const { data } = await client.from('profiles').select('*');
+        if (data) {
+          const mapped = data.map(p => ({
+            id: p.id,
+            name: p.name,
+            avatar: p.avatar || '🏃‍♂️',
+            email: p.email,
+            bio: p.bio || 'Atleta de BusRun.',
+            rankName: 'Explorador',
+            pct: 0,
+            km: 0,
+            privacy: 'public',
+            completedRefs: [] as string[]
+          }));
+          setRegisteredAthletes(mapped);
+        }
+      };
+      fetchProfiles();
+
+      const loadFollows = async () => {
+        const { data } = await client
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', userProfile.id);
+        if (data) {
+          const followsObj: Record<string, boolean> = {};
+          data.forEach((row: any) => {
+            followsObj[row.following_id] = true;
+          });
+          setFollowedAthletes(followsObj);
+        }
+      };
+      loadFollows();
+    }
+  }, [userProfile.loggedIn, userProfile.id]);
+
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !showChatModal) return;
+    const recipient = chatRecipient || { id: 'marta-corredora', name: 'Marta Corredora' };
+    
+    if (recipient.id === 'marta-corredora' && userProfile.isTestingMode) {
+      return;
+    }
+
+    const fetchMessages = async () => {
+      const { data } = await client
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${userProfile.id},receiver_id.eq.${recipient.id}),and(sender_id.eq.${recipient.id},receiver_id.eq.${userProfile.id})`)
+        .order('created_at', { ascending: true });
+      if (data) {
+        setChatMessages(data.map((m: any) => ({
+          sender: m.sender_id === userProfile.id ? 'me' : 'other',
+          text: m.text,
+          time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        })));
+      }
+    };
+    fetchMessages();
+
+    const channel = client
+      .channel('chat_room')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload: any) => {
+          const newMsg = payload.new;
+          if (
+            (newMsg.sender_id === userProfile.id && newMsg.receiver_id === recipient.id) ||
+            (newMsg.sender_id === recipient.id && newMsg.receiver_id === userProfile.id)
+          ) {
+            setChatMessages(prev => [
+              ...prev,
+              {
+                sender: newMsg.sender_id === userProfile.id ? 'me' : 'other',
+                text: newMsg.text,
+                time: new Date(newMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              }
+            ]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      client.removeChannel(channel);
+    };
+  }, [showChatModal, chatRecipient, userProfile.id]);
+
   const aiRecommendation = useMemo(() => {
     if (burgosBusLines.length === 0) {
       return { line: null, text: 'IA Coach: Cargando datos de transporte de la ciudad...', actionable: false };
@@ -1542,35 +1818,57 @@ export default function App() {
     setNearbyStops(sortedNearby.slice(0, 5));
   };
 
-  const handleLikeActivity = (actId: string) => {
+  const handleLikeActivity = async (actId: string) => {
+    let liked = false;
     const updated = feedActivities.map(act => {
       if (act.id === actId) {
-        const liked = !act.likedByMe;
+        liked = !act.likedByMe;
         return { ...act, likedByMe: liked, likes: liked ? act.likes + 1 : act.likes - 1 };
       }
       return act;
     });
     saveFeed(updated);
+
+    if (supabase && userProfile.loggedIn) {
+      if (liked) {
+        await supabase.from('likes').insert({
+          user_id: userProfile.id,
+          activity_id: actId
+        });
+      } else {
+        await supabase.from('likes').delete().eq('user_id', userProfile.id).eq('activity_id', actId);
+      }
+    }
   };
 
-  const handlePostComment = (actId: string) => {
+  const handlePostComment = async (actId: string) => {
     const text = commentInputs[actId];
     if (!text || !text.trim()) return;
 
+    const newCommentId = `comm-${Date.now()}`;
     const updated = feedActivities.map(act => {
       if (act.id === actId) {
         return {
           ...act,
           comments: [
             ...act.comments,
-            { id: `comm-${Date.now()}`, userName: userProfile.name, text: text.trim() }
+            { id: newCommentId, userName: userProfile.name, text: text.trim() }
           ]
         };
       }
       return act;
     });
     saveFeed(updated);
-    setCommentInputs({ ...commentInputs, [actId]: '' });
+    setCommentInputs(prev => ({ ...prev, [actId]: '' }));
+
+    if (supabase && userProfile.loggedIn) {
+      await supabase.from('comments').insert({
+        id: newCommentId,
+        user_id: userProfile.id,
+        activity_id: actId,
+        text: text.trim()
+      });
+    }
   };
 
   const handleDeleteCompleted = (cityLineRefKey: string) => {
@@ -1829,6 +2127,7 @@ ${gpxSegments}
         localStorage.setItem('busrun-imported-strava-ids', JSON.stringify(importedIds));
         saveProgress(updatedCompleted);
         saveFeed([...newActs, ...feedActivities]);
+        newActs.forEach(act => saveNewActivityToDatabase(act));
         addNotification('Strava', `¡Sincronización con éxito! Se importaron ${newImportsCount} carreras nuevas desde tu Strava.`, 'success');
       } else {
         addNotification('Strava', 'Sincronizado. No hay nuevas actividades para importar en Strava.', 'info');
@@ -1937,6 +2236,7 @@ ${gpxSegments}
       
       const newFeed = [newActivity, ...feedActivities];
       saveFeed(newFeed);
+      saveNewActivityToDatabase(newActivity);
 
       setGpxResult({
         success: true,
@@ -1967,6 +2267,7 @@ ${gpxSegments}
 
       const newFeed = [newActivity, ...feedActivities];
       saveFeed(newFeed);
+      saveNewActivityToDatabase(newActivity);
 
       setGpxResult({
         success: true,
@@ -2010,7 +2311,7 @@ ${segments.join('\n')}
   };
 
   // mockAthletesList is defined globally
-  const selectedAthlete = mockAthletesList.find(a => a.id === selectedAthleteId);
+  const selectedAthlete = activeAthletesList.find(a => a.id === selectedAthleteId);
 
   if (!onboardingCompleted) {
     return (
@@ -2070,7 +2371,8 @@ ${segments.join('\n')}
                 
                 <button
                   onClick={() => {
-                    const mockProfile = {
+                    const mockProfile: UserProfile = {
+                      id: 'mock-tester',
                       loggedIn: true,
                       name: 'Félix (Tester)',
                       email: 'felix.tester@busrun.com',
@@ -2778,7 +3080,7 @@ ${segments.join('\n')}
         <div className="login-modal-overlay">
           <div className="chat-modal-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0 }}>Mensajes con Marta Corredora</h3>
+              <h3 style={{ margin: 0 }}>Mensajes con {chatRecipient?.name || 'Marta Corredora'}</h3>
               <span style={{ fontSize: '0.8rem', color: '#10b981' }}>● En línea</span>
             </div>
             <div className="chat-messages-container">
@@ -2797,27 +3099,13 @@ ${segments.join('\n')}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && chatInput.trim()) {
-                    const myMsg = chatInput.trim();
-                    setChatMessages(prev => [...prev, { sender: 'me', text: myMsg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-                    setChatInput('');
-                    setTimeout(() => {
-                      setChatMessages(prev => [...prev, { sender: 'other', text: '¡Totalmente de acuerdo! La clave es tomárselo con calma al principio. ¡A seguir sumando!', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-                    }, 1200);
+                    handleSendMessage(chatInput);
                   }
                 }}
               />
-              <button onClick={() => {
-                if (chatInput.trim()) {
-                  const myMsg = chatInput.trim();
-                  setChatMessages(prev => [...prev, { sender: 'me', text: myMsg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-                  setChatInput('');
-                  setTimeout(() => {
-                    setChatMessages(prev => [...prev, { sender: 'other', text: '¡Totalmente de acuerdo! La clave es tomárselo con calma al principio. ¡A seguir sumando!', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
-                  }, 1200);
-                }
-              }}>Enviar</button>
+              <button onClick={() => handleSendMessage(chatInput)}>Enviar</button>
             </div>
-            <button className="btn-close-modal" onClick={() => setShowChatModal(false)} style={{ background: 'transparent', border: '1px solid #777', color: '#ccc', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}>Cerrar Chat</button>
+            <button className="btn-close-modal" onClick={() => { setShowChatModal(false); setChatRecipient(null); }} style={{ background: 'transparent', border: '1px solid #777', color: '#ccc', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}>Cerrar Chat</button>
           </div>
         </div>
       )}
@@ -4097,8 +4385,7 @@ ${segments.join('\n')}
                             className={`btn-follow-athlete ${followedAthletes[ath.id] ? 'following' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setFollowedAthletes(prev => ({ ...prev, [ath.id]: !prev[ath.id] }));
-                              addNotification('Social', followedAthletes[ath.id] ? `Has dejado de seguir a ${ath.name}.` : `¡Ahora sigues a ${ath.name}!`, 'info');
+                              handleToggleFollow(ath.id, ath.name);
                             }}
                           >
                             {followedAthletes[ath.id] ? 'Siguiendo' : 'Seguir'}
@@ -4112,7 +4399,7 @@ ${segments.join('\n')}
 
               <h4 style={{ marginBottom: '12px', fontSize: '0.95rem', fontWeight: 'bold', color: 'white' }}>Todos los Atletas:</h4>
               <div className="athletes-results-grid">
-                {mockAthletesList.filter(ath => ath.name.toLowerCase().includes(athleteSearchQuery.toLowerCase()) || ath.rankName.toLowerCase().includes(athleteSearchQuery.toLowerCase())).map((ath) => {
+                {activeAthletesList.filter(ath => ath.name.toLowerCase().includes(athleteSearchQuery.toLowerCase()) || ath.rankName.toLowerCase().includes(athleteSearchQuery.toLowerCase())).map((ath) => {
                   const isFav = !!favoriteAthletes[ath.id];
                   return (
                     <div key={ath.id} className="athlete-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedAthleteId(ath.id)}>
@@ -4129,8 +4416,7 @@ ${segments.join('\n')}
                         className={`btn-follow-athlete ${followedAthletes[ath.id] ? 'following' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setFollowedAthletes(prev => ({ ...prev, [ath.id]: !prev[ath.id] }));
-                          addNotification('Social', followedAthletes[ath.id] ? `Has dejado de seguir a ${ath.name}.` : `¡Ahora sigues a ${ath.name}!`, 'info');
+                          handleToggleFollow(ath.id, ath.name);
                         }}
                       >
                         {followedAthletes[ath.id] ? 'Siguiendo' : 'Seguir'}
@@ -4475,6 +4761,7 @@ ${segments.join('\n')}
                         <button 
                           onClick={() => {
                             const newProfile: UserProfile = {
+                              id: 'mock-felix-garcia',
                               loggedIn: true,
                               name: 'Félix García',
                               email: 'felix.garcia@gmail.com',
@@ -4495,6 +4782,7 @@ ${segments.join('\n')}
                         <button 
                           onClick={() => {
                             const newProfile: UserProfile = {
+                              id: 'mock-marta-corredora',
                               loggedIn: true,
                               name: 'Marta Corredora',
                               email: 'marta.runner@gmail.com',
@@ -4815,7 +5103,7 @@ ${segments.join('\n')}
                     <div style={{ textAlign: 'left', marginBottom: '20px' }}>
                       <h4 style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '6px' }}>Líneas Completadas:</h4>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '100px', overflowY: 'auto' }}>
-                        {selectedAthlete.completedRefs.map(ref => (
+                        {selectedAthlete.completedRefs.map((ref: string) => (
                           <span key={ref} style={{ fontSize: '0.7rem', fontWeight: 'bold', background: 'rgba(252, 82, 0, 0.15)', color: 'var(--brand-orange)', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(252, 82, 0, 0.25)' }}>
                             {ref}
                           </span>
@@ -4842,8 +5130,7 @@ ${segments.join('\n')}
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
                 onClick={() => {
-                  setFollowedAthletes(prev => ({ ...prev, [selectedAthlete.id]: !prev[selectedAthlete.id] }));
-                  addNotification('Social', followedAthletes[selectedAthlete.id] ? `Has dejado de seguir a ${selectedAthlete.name}.` : `¡Ahora sigues a ${selectedAthlete.name}!`, 'info');
+                  handleToggleFollow(selectedAthlete.id, selectedAthlete.name);
                 }}
                 style={{
                   flex: 1,
@@ -4860,23 +5147,45 @@ ${segments.join('\n')}
               </button>
               
               {followedAthletes[selectedAthlete.id] && (
-                <button 
-                  onClick={() => {
-                    const newFavs = { ...favoriteAthletes, [selectedAthlete.id]: !favoriteAthletes[selectedAthlete.id] };
-                    saveFavorites(newFavs);
-                  }}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid #fc5200',
-                    background: 'transparent',
-                    color: '#fc5200',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {favoriteAthletes[selectedAthlete.id] ? '★ Quitar Fav' : '⭐ Fav'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={() => {
+                      const newFavs = { ...favoriteAthletes, [selectedAthlete.id]: !favoriteAthletes[selectedAthlete.id] };
+                      saveFavorites(newFavs);
+                    }}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #fc5200',
+                      background: 'transparent',
+                      color: '#fc5200',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    {favoriteAthletes[selectedAthlete.id] ? '★ Quitar Fav' : '⭐ Fav'}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setChatRecipient({ id: selectedAthlete.id, name: selectedAthlete.name });
+                      setSelectedAthleteId(null);
+                      setShowChatModal(true);
+                    }}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #10b981',
+                      background: 'transparent',
+                      color: '#10b981',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    💬 Chat
+                  </button>
+                </div>
               )}
             </div>
 
