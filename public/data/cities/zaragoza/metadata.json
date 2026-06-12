@@ -1,0 +1,28 @@
+[
+  {
+    "id": "2658866",
+    "name": "Tram L1: Mago de Oz → Avenida de la Academia",
+    "ref": "L1",
+    "description": "Ruta real de tram urbano gestionada por Sociedad de Economía Mixta Los Tranvías de Zaragoza.",
+    "distanceKm": 18.2,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 14563,
+    "estRunningSeconds": 5957,
+    "stopsCount": 25,
+    "transport_type": "tram"
+  },
+  {
+    "id": "2658867",
+    "name": "Tram L1: Avenida de la Academia → Mago de Oz",
+    "ref": "L1",
+    "description": "Ruta real de tram urbano gestionada por Sociedad de Economía Mixta Los Tranvías de Zaragoza.",
+    "distanceKm": 17.76,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 14211,
+    "estRunningSeconds": 5813,
+    "stopsCount": 25,
+    "transport_type": "tram"
+  }
+]

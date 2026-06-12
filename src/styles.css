@@ -4,11 +4,11 @@
   background: #f1f5f9;
   color: #0f172a;
   
-  /* Brand Palette (Strava/Athletic Blaze Orange) */
-  --brand-orange: #fc5200;
-  --brand-orange-hover: #e04a00;
-  --brand-orange-light: rgba(252, 82, 0, 0.08);
-  --brand-dark: #0f172a;
+  /* Brand Palette (Underground Metro Blue / Cyan Accents) */
+  --brand-orange: #2563eb;
+  --brand-orange-hover: #1d4ed8;
+  --brand-orange-light: rgba(37, 99, 235, 0.08);
+  --brand-dark: #090d16;
   --brand-dark-soft: #1e293b;
   --brand-light: #ffffff;
   --accent-green: #10b981;

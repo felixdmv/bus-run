@@ -1,0 +1,161 @@
+[
+  {
+    "id": "burgos",
+    "name": "Burgos",
+    "country": "España",
+    "center": [
+      42.3448498,
+      -3.6812477
+    ],
+    "zoom": 13,
+    "transports": [
+      "bus"
+    ]
+  },
+  {
+    "id": "madrid",
+    "name": "Madrid",
+    "country": "España",
+    "center": [
+      40.416782,
+      -3.703507
+    ],
+    "zoom": 12,
+    "transports": [
+      "metro"
+    ]
+  },
+  {
+    "id": "barcelona",
+    "name": "Barcelona",
+    "country": "España",
+    "center": [
+      41.3825802,
+      2.177073
+    ],
+    "zoom": 12,
+    "transports": [
+      "metro",
+      "tram"
+    ]
+  },
+  {
+    "id": "bilbao",
+    "name": "Bilbao",
+    "country": "España",
+    "center": [
+      43.2630018,
+      -2.9350039
+    ],
+    "zoom": 12,
+    "transports": [
+      "metro",
+      "tram"
+    ]
+  },
+  {
+    "id": "valencia",
+    "name": "Valencia",
+    "country": "España",
+    "center": [
+      39.4697065,
+      -0.3763353
+    ],
+    "zoom": 12,
+    "transports": [
+      "metro"
+    ]
+  },
+  {
+    "id": "sevilla",
+    "name": "Sevilla",
+    "country": "España",
+    "center": [
+      37.3886303,
+      -5.9953403
+    ],
+    "zoom": 12,
+    "transports": [
+      "metro",
+      "tram"
+    ]
+  },
+  {
+    "id": "zaragoza",
+    "name": "Zaragoza",
+    "country": "España",
+    "center": [
+      41.6915847,
+      -0.9101268
+    ],
+    "zoom": 12,
+    "transports": [
+      "tram"
+    ]
+  },
+  {
+    "id": "murcia",
+    "name": "Murcia",
+    "country": "España",
+    "center": [
+      37.9347521,
+      -1.1131029
+    ],
+    "zoom": 12,
+    "transports": [
+      "tram"
+    ]
+  },
+  {
+    "id": "new_york",
+    "name": "New York",
+    "country": "United States",
+    "center": [
+      40.7127281,
+      -74.0060152
+    ],
+    "zoom": 12,
+    "transports": [
+      "metro"
+    ]
+  },
+  {
+    "id": "london",
+    "name": "London",
+    "country": "United Kingdom",
+    "center": [
+      51.5074456,
+      -0.1277653
+    ],
+    "zoom": 12,
+    "transports": [
+      "metro"
+    ]
+  },
+  {
+    "id": "paris",
+    "name": "Paris",
+    "country": "France",
+    "center": [
+      48.8588897,
+      2.320041
+    ],
+    "zoom": 12,
+    "transports": [
+      "metro"
+    ]
+  },
+  {
+    "id": "berlin",
+    "name": "Berlin",
+    "country": "Deutschland",
+    "center": [
+      52.5173885,
+      13.3951309
+    ],
+    "zoom": 12,
+    "transports": [
+      "metro"
+    ]
+  }
+]

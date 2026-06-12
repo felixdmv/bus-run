@@ -121,7 +121,56 @@ function MapViewController({ center, zoom = 14 }: { center: [number, number]; zo
   return null;
 }
 
-// Haversine distance in km
+function SponsorAdSenseBanner() {
+  return (
+    <div 
+      className="sponsor-ad-banner"
+      style={{
+        background: 'var(--brand-dark-soft)',
+        borderRadius: '12px',
+        padding: '16px',
+        textAlign: 'center',
+        border: '1px solid rgba(252, 82, 0, 0.15)',
+        boxShadow: 'var(--shadow-sm)',
+        marginTop: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px'
+      }}
+    >
+      <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--brand-orange)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        PATROCINADO / ANUNCIO
+      </span>
+      {/* Mock Banner */}
+      <div 
+        style={{
+          width: '100%',
+          maxWidth: '728px',
+          height: '90px',
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))',
+          borderRadius: '8px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '1px dashed rgba(255,255,255,0.1)',
+          cursor: 'pointer'
+        }}
+        onClick={() => window.open('https://google.com/adsense/start/', '_blank')}
+      >
+        <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>Nike Run Club Challenge</strong>
+        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Completa la Línea Metro 1 de Nueva York y gana 15% de descuento en equipación</span>
+      </div>
+      <p style={{ fontSize: '0.65rem', color: '#64748b', margin: 0 }}>
+        Anuncio de Google AdSense. Elimina anuncios y obtén descargas GPX ilimitadas con <span style={{ color: 'var(--brand-orange)', fontWeight: 'bold' }}>MetroMile Premium</span>.
+      </p>
+    </div>
+  );
+}
+
+
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -133,6 +182,102 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
+
+const Icons = {
+  Feed: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+  ),
+  Map: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+      <line x1="9" y1="3" x2="9" y2="18" />
+      <line x1="15" y1="6" x2="15" y2="21" />
+    </svg>
+  ),
+  Search: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
+  Profile: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
+  Pencil: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z" />
+    </svg>
+  ),
+  Bus: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <line x1="6" y1="21" x2="6" y2="17" />
+      <line x1="18" y1="21" x2="18" y2="17" />
+      <line x1="2" y1="11" x2="22" y2="11" />
+    </svg>
+  ),
+  Metro: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="4" y="3" width="16" height="14" rx="2" />
+      <path d="M4 11h16" />
+      <path d="M12 3v8" />
+      <path d="M8 21l2-4" />
+      <path d="M16 21l-2-4" />
+    </svg>
+  ),
+  Tram: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="3" y="4" width="18" height="13" rx="2" />
+      <path d="M7 20h10" />
+      <path d="M5 4v13" />
+      <path d="M19 4v13" />
+      <path d="M9 10h6" />
+      <path d="M12 2v2" />
+    </svg>
+  ),
+  Gear: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  ),
+  Link: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  ),
+  Shield: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  ),
+  Info: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  ),
+  Mail: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  ),
+  Phone: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  )
+};
 
 function isErroneousStopName(name: string, stopId: string): boolean {
   const clean = (name || '').trim().toLowerCase();
@@ -218,24 +363,29 @@ function formatDuration(seconds: number) {
 }
 
 // 10 Levels based on city completed percentage (from 0% to 100%)
-const BURGOS_RANKS: BurgosRank[] = [
-  { id: 'dominguero', name: 'Dominguero', title: 'Explorador Dominguero', minPercentage: 0, description: 'Acabas de empezar (0%+). Trotas los domingos a ritmo suave por tu barrio.', icon: '👒' },
-  { id: 'turista', name: 'Turista', title: 'Turista del Arlanzón', minPercentage: 10, description: 'Iniciando exploración (10%+). Ya te conocen por el Espolón y la Catedral.', icon: '📸' },
-  { id: 'peregrino', name: 'Peregrino', title: 'Peregrino del Camino', minPercentage: 20, description: 'Progreso constante (20%+). Sigues las flechas del Camino de Santiago.', icon: '🐚' },
-  { id: 'explorador', name: 'Explorador', title: 'Explorador Burgalés', minPercentage: 30, description: 'Explorando barrios (30%+). Dominas distancias medias en Gamonal y Fuentecillas.', icon: '🧭' },
-  { id: 'centinela', name: 'Centinela', title: 'Centinela del Castillo', minPercentage: 40, description: 'Retos de altura (40%+). Controlas las subidas empinadas del cerro del Castillo.', icon: '🏰' },
-  { id: 'comunero', name: 'Comunero', title: 'Líder Comunero', minPercentage: 50, description: 'La mitad conquistada (50%+). Lideras el asfalto en más de la mitad del mapa.', icon: '🛡️' },
-  { id: 'condestable', name: 'Condestable', title: 'Condestable de Castilla', minPercentage: 60, description: 'Gobernador urbano (60%+). Tienes un control amplio de la red urbana.', icon: '📜' },
-  { id: 'alcalde', name: 'Alcalde', title: 'Alcalde de la Red', minPercentage: 80, description: 'Conocimiento experto (80%+). Conoces cada parada de bus mejor que la alcaldía.', icon: '🏛️' },
-  { id: 'caballero', name: 'Caballero', title: 'Caballero del Asfalto', minPercentage: 90, description: 'Cerca de la gloria (90%+). Eres admirado por todos los conductores de Burgos.', icon: '🐎' },
-  { id: 'cid', name: 'Cid Campeador', title: 'Cid Campeador Legendario', minPercentage: 100, description: 'Leyenda máxima (100%). Has completado absolutamente todas las líneas de la ciudad.', icon: '⚔️' }
+interface GlobalRank {
+  id: string;
+  name: string;
+  title: string;
+  minPercentage: number;
+  description: string;
+  icon: string;
+}
+
+const GLOBAL_RANKS: GlobalRank[] = [
+  { id: 'passerby', name: 'Transeúnte', title: 'Explorador Urbano Inicial', minPercentage: 0, description: 'Acabas de empezar (0%+). Conoces tu barrio a ritmo muy suave.', icon: '👒' },
+  { id: 'sightseer', name: 'Turista', title: 'Explorador de Líneas', minPercentage: 10, description: 'Has completado un 10%+ de las líneas urbanas locales.', icon: '📸' },
+  { id: 'commuter', name: 'Conmutador', title: 'Corredor de Tránsito', minPercentage: 25, description: 'Dominas la red (25%+). Corres a ritmo de hora punta.', icon: '🎫' },
+  { id: 'explorer', name: 'Explorador', title: 'Navegador Metropolitano', minPercentage: 50, description: 'La mitad de la ciudad conquistada (50%+). Las paradas son tu pista.', icon: '🧭' },
+  { id: 'expert', name: 'Experto', title: 'Experto en Rutas', minPercentage: 75, description: 'Dominio absoluto (75%+). Conoces las conexiones mejor que los mapas.', icon: '🏛️' },
+  { id: 'legend', name: 'Leyenda del Tránsito', title: 'Leyenda Urbana Absoluta', minPercentage: 100, description: '¡100%! Has conquistado y corrido absolutamente todas las líneas de la ciudad.', icon: '⚔️' }
 ];
 
 const mockAthletesList = [
-  { id: 'carlos-gomez', name: 'Carlos Gómez', avatar: '🏃‍♂️', rankName: 'Explorador Burgalés', pct: 33, lines: 8, km: 58, privacy: 'public', bio: 'Me encanta explorar las rutas de Burgos a ritmo de carrera. ¡El Cid me vigila!', completedRefs: ['L01', 'L05', 'L08'] },
-  { id: 'sofia-martinez', name: 'Sofía Martínez', avatar: '⚡', rankName: 'Centinela del Castillo', pct: 45, lines: 11, km: 82, privacy: 'followers', bio: 'Corredora habitual por las mañanas. La subida al castillo es mi entrenamiento preferido.', completedRefs: ['L02', 'L06', 'L11', 'L18'] },
-  { id: 'marta-corredora', name: 'Marta Corredora', avatar: '🏃‍♀️', rankName: 'Caballero del Asfalto', pct: 92, lines: 23, km: 164, privacy: 'public', bio: 'Buscando el 100% de Burgos para subir a Cid Campeador. ¡Sígueme para ver mis rutas urbanas!', completedRefs: ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10', 'L12', 'L13', 'L14', 'L15'] },
-  { id: 'diego-cid', name: 'Diego Cid', avatar: '⚔️', rankName: 'Cid Campeador Legendario', pct: 100, lines: 25, km: 210, privacy: 'private', bio: 'El primer Cid Campeador de la red. Completados todos los recorridos urbanos. Leyenda burgalesa.', completedRefs: ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10', 'L11', 'L12', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L20', 'L21', 'L22', 'L24', 'L25', 'L28', 'L80'] }
+  { id: 'carlos-gomez', name: 'Carlos Gómez', avatar: '🏃‍♂️', rankName: 'Explorador de Líneas', pct: 33, lines: 8, km: 58, privacy: 'public', bio: 'Me encanta explorar las rutas a ritmo de carrera.', completedRefs: ['L01', 'L05', 'L08'] },
+  { id: 'sofia-martinez', name: 'Sofía Martínez', avatar: '⚡', rankName: 'Navegador Metropolitano', pct: 50, lines: 11, km: 82, privacy: 'followers', bio: 'Corredora habitual por las mañanas. El transporte urbano es mi entrenamiento preferido.', completedRefs: ['L02', 'L06', 'L11', 'L18'] },
+  { id: 'marta-corredora', name: 'Marta Corredora', avatar: '🏃‍♀️', rankName: 'Experto en Rutas', pct: 92, lines: 23, km: 164, privacy: 'public', bio: 'Buscando el 100% de mi ciudad para subir a Leyenda del Tránsito.', completedRefs: ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10', 'L12', 'L13', 'L14', 'L15'] },
+  { id: 'diego-cid', name: 'Diego Cid', avatar: '⚔️', rankName: 'Leyenda Urbana Absoluta', pct: 100, lines: 25, km: 210, privacy: 'private', bio: 'El primer Cid de la red. Completados todos los recorridos urbanos. Leyenda de la ciudad.', completedRefs: ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10', 'L11', 'L12', 'L13', 'L14', 'L15', 'L16', 'L17', 'L18', 'L20', 'L21', 'L22', 'L24', 'L25', 'L28', 'L80'] }
 ];
 
 const mockFollowRelations: Record<string, string[]> = {
@@ -341,6 +491,7 @@ export default function App() {
 
   // Simulation states
   const [activeCity, setActiveCity] = useState('burgos');
+  const [citiesList, setCitiesList] = useState<{ id: string; name: string; country: string; center: [number, number]; zoom: number; transports: string[] }[]>([]);
   const [activeTransport, setActiveTransport] = useState('bus');
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
 
@@ -483,7 +634,7 @@ export default function App() {
     unit: 'km'
   });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsActiveTab, setSettingsActiveTab] = useState<'profile' | 'devices' | 'preferences'>('profile');
+  const [settingsActiveTab, setSettingsActiveTab] = useState<'profile' | 'devices' | 'preferences' | 'info'>('profile');
 
   // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -709,18 +860,88 @@ export default function App() {
     }
   };
 
-  // Dynamic City Route Loader with Stop Name Sanitizer
+  // Load list of supported cities
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        const response = await fetch('/data/cities.json');
+        if (response.ok) {
+          const data = await response.json();
+          setCitiesList(data);
+        } else {
+          // Default fallback cities in case cities.json doesn't exist yet
+          setCitiesList([
+            { id: 'burgos', name: 'Burgos', country: 'España', center: [42.3448, -3.6812], zoom: 13, transports: ['bus'] },
+            { id: 'madrid', name: 'Madrid', country: 'España', center: [40.4167, -3.7037], zoom: 12, transports: ['metro'] },
+            { id: 'barcelona', name: 'Barcelona', country: 'España', center: [41.3851, 2.1734], zoom: 12, transports: ['metro'] },
+            { id: 'bilbao', name: 'Bilbao', country: 'España', center: [43.2630, -2.9350], zoom: 12, transports: ['metro'] }
+          ]);
+        }
+      } catch (e) {
+        console.error("Error loading cities list:", e);
+      }
+    };
+    loadCities();
+  }, []);
+
+  const ensureRouteDetailsLoaded = async (lines: LineRoute[]) => {
+    const promises = lines.map(async (line) => {
+      if (line.coords && line.coords.length > 0 && line.stops && line.stops.length > 0) {
+        return line;
+      }
+      try {
+        const res = await fetch(`/data/cities/${activeCity}/routes/${line.id}.json`);
+        if (res.ok) {
+          const detail = await res.json();
+          return { ...line, coords: detail.coords, stops: detail.stops };
+        }
+      } catch (e) {
+        console.error('Failed to load route detail for', line.id, e);
+      }
+      return line;
+    });
+    const loaded = await Promise.all(promises);
+    setLoadedBusLines(loaded);
+    return loaded;
+  };
+
+  // Dynamic City Route Loader with Stop Name Sanitizer & Legacy Fallback
   useEffect(() => {
     const loadCityData = async () => {
       try {
-        const response = await fetch(`/data/${activeCity}.json`);
-        if (!response.ok) {
-          throw new Error('City file not found');
+        let data: LineRoute[] = [];
+        
+        // Try the new split format index first
+        const response = await fetch(`/data/cities/${activeCity}/metadata.json`);
+        if (response.ok) {
+          const meta = await response.json();
+          data = meta.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            ref: m.ref,
+            description: m.description,
+            distanceKm: m.distanceKm,
+            elevationGain: m.elevationGain,
+            elevationLoss: m.elevationLoss,
+            estWalkingSeconds: m.estWalkingSeconds,
+            estRunningSeconds: m.estRunningSeconds,
+            stopsCount: m.stopsCount,
+            coords: [],
+            stops: []
+          }));
+        } else {
+          // Fallback to legacy single JSON file
+          const legacyResponse = await fetch(`/data/${activeCity}.json`);
+          if (!legacyResponse.ok) {
+            throw new Error('City file not found');
+          }
+          data = await legacyResponse.json() as LineRoute[];
         }
-        const data = await response.json() as LineRoute[];
         
         // Clean stops to make sure they all have names!
         const cleaned = data.map(line => {
+          if (!line.stops || line.stops.length === 0) return line;
+          
           const cleanedStops = line.stops.map((stop, idx) => {
             let name = stop.name ? stop.name.trim() : '';
             if (isErroneousStopName(name, stop.id)) {
@@ -759,6 +980,32 @@ export default function App() {
     loadCityData();
   }, [activeCity]);
 
+  // Load selected line details (coordinates and stops) on demand
+  useEffect(() => {
+    if (!selectedLineId) return;
+    
+    const line = loadedBusLines.find(l => l.id === selectedLineId);
+    if (line && (!line.coords || line.coords.length === 0 || !line.stops || line.stops.length === 0)) {
+      const fetchRouteDetails = async () => {
+        try {
+          const res = await fetch(`/data/cities/${activeCity}/routes/${selectedLineId}.json`);
+          if (res.ok) {
+            const detail = await res.json();
+            setLoadedBusLines(prev => prev.map(l => {
+              if (l.id === selectedLineId) {
+                return { ...l, coords: detail.coords, stops: detail.stops };
+              }
+              return l;
+            }));
+          }
+        } catch (e) {
+          console.error("Error fetching route details:", e);
+        }
+      };
+      fetchRouteDetails();
+    }
+  }, [selectedLineId, activeCity, loadedBusLines]);
+
   // Google Identity Services (GIS) Real Authentication Hook
   useEffect(() => {
     const initGoogle = () => {
@@ -777,7 +1024,7 @@ export default function App() {
                 email: payload.email || '',
                 avatar: payload.picture || '👤',
                 location: 'Burgos, España',
-                bio: 'Conectado a BusRun con Google. ¡Listo para devorar las calles!',
+                bio: 'Conectado a MetroMile con Google. ¡Listo para devorar las calles!',
                 isTestingMode: false
               };
               saveProfile(newProfile);
@@ -1006,7 +1253,7 @@ export default function App() {
     setIsPaused(p => !p);
   };
 
-  const stopAndSaveRecording = () => {
+  const stopAndSaveRecording = async () => {
     if (watchIdRef.current) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
@@ -1028,7 +1275,9 @@ export default function App() {
     let bestMatchPercent = 0;
     let bestVisitedStops = 0;
 
-    for (const line of burgosBusLines) {
+    const fullyLoadedLines = await ensureRouteDetailsLoaded(loadedBusLines);
+
+    for (const line of fullyLoadedLines) {
       let visitedStopsCount = 0;
       for (const stop of line.stops) {
         const isClose = recordingCoords.some(([glat, glon]) => {
@@ -1466,10 +1715,10 @@ export default function App() {
   }, [completed]);
 
   const currentRank = useMemo(() => {
-    let activeRank = BURGOS_RANKS[0];
-    for (let i = BURGOS_RANKS.length - 1; i >= 0; i--) {
-      if (globalCompletionPercentage >= BURGOS_RANKS[i].minPercentage) {
-        activeRank = BURGOS_RANKS[i];
+    let activeRank = GLOBAL_RANKS[0];
+    for (let i = GLOBAL_RANKS.length - 1; i >= 0; i--) {
+      if (globalCompletionPercentage >= GLOBAL_RANKS[i].minPercentage) {
+        activeRank = GLOBAL_RANKS[i];
         break;
       }
     }
@@ -1645,7 +1894,7 @@ export default function App() {
             name: p.name,
             avatar: p.avatar || '🏃‍♂️',
             email: p.email,
-            bio: p.bio || 'Atleta de BusRun.',
+            bio: p.bio || 'Atleta de MetroMile.',
             rankName: 'Explorador',
             pct: 0,
             km: 0,
@@ -1916,7 +2165,7 @@ export default function App() {
     const cleanFeed = feedActivities.filter(act => act.lineRef !== ref || act.userName !== userProfile.name);
     saveFeed(cleanFeed);
 
-    addNotification('BusRun', `Se ha eliminado la Línea ${ref} de tus actividades.`, 'info');
+    addNotification('MetroMile', `Se ha eliminado la Línea ${ref} de tus actividades.`, 'info');
   };
 
   const triggerGpxDownload = (route: LineRoute) => {
@@ -2081,6 +2330,8 @@ ${gpxSegments}
       let updatedCompleted = { ...completed };
       const newActs: UserActivity[] = [];
 
+      const fullyLoadedLines = await ensureRouteDetailsLoaded(loadedBusLines);
+
       for (const run of runs) {
         const runId = String(run.id);
         if (importedIds.includes(runId)) continue;
@@ -2101,7 +2352,7 @@ ${gpxSegments}
         let bestMatchScore = 0;
 
         if (runCoords.length > 5) {
-          for (const line of burgosBusLines) {
+          for (const line of fullyLoadedLines) {
             let visitedStopsCount = 0;
             for (const stop of line.stops) {
               const isClose = runCoords.some(([glat, glon]) => {
@@ -2201,7 +2452,7 @@ ${gpxSegments}
     reader.readAsText(file);
   };
 
-  const verifyUploadedGpx = (gpxText: string) => {
+  const verifyUploadedGpx = async (gpxText: string) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(gpxText, 'text/xml');
     const trkpts = xmlDoc.getElementsByTagName('trkpt');
@@ -2223,12 +2474,14 @@ ${gpxSegments}
       }
     }
 
-    // Automatically match against all routes in Burgos
+    // Automatically match against all routes in active city
     let bestMatchLine: LineRoute | null = null;
     let bestMatchPercent = 0;
     let bestVisitedStops = 0;
 
-    for (const line of burgosBusLines) {
+    const fullyLoadedLines = await ensureRouteDetailsLoaded(loadedBusLines);
+
+    for (const line of fullyLoadedLines) {
       let visitedStopsCount = 0;
       for (const stop of line.stops) {
         const isClose = gpxCoords.some(([glat, glon]) => {
@@ -2293,7 +2546,7 @@ ${gpxSegments}
         msg: `¡Verificación con éxito! Detectada la Línea ${detectedLine.ref} automáticamente. Has visitado ${bestVisitedStops} de las ${detectedLine.stops.length} paradas (${bestMatchPercent}% coincidencia). ¡Trayecto guardado!`,
         matchPercent: bestMatchPercent
       });
-      addNotification('BusRun', `¡Línea ${detectedLine.ref} detectada y completada!`, 'success');
+      addNotification('MetroMile', `¡Línea ${detectedLine.ref} detectada y completada!`, 'success');
     } else {
       // Post as a Free Activity (Entrenamiento Libre) since it doesn't match any bus line
       const newActivity: UserActivity = {
@@ -2324,7 +2577,7 @@ ${gpxSegments}
         msg: `Actividad subida con éxito como 'Entrenamiento Libre'. No coincide con ninguna línea de autobús registrada (Coincidencia máxima: ${bestMatchPercent}%).`,
         matchPercent: bestMatchPercent
       });
-      addNotification('BusRun', `¡Entrenamiento Libre subido con éxito!`, 'info');
+      addNotification('MetroMile', `¡Entrenamiento Libre subido con éxito!`, 'info');
     }
   };
 
@@ -2402,7 +2655,7 @@ ${segments.join('\n')}
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
             <span style={{ fontSize: '2.4rem', background: 'linear-gradient(135deg, #ff7e40, #fc5200)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>⚡</span>
-            <h1 style={{ fontSize: '2.2rem', fontWeight: '900', letterSpacing: '-0.02em', margin: 0 }}>BusRun</h1>
+            <h1 style={{ fontSize: '2.2rem', fontWeight: '900', letterSpacing: '-0.02em', margin: 0 }}>MetroMile</h1>
           </div>
 
           {!userProfile.loggedIn ? (
@@ -2410,7 +2663,7 @@ ${segments.join('\n')}
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>Paso 1: Iniciar Sesión 👤</h2>
               <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px' }}>
-                Para comenzar a registrar tus carreras y competir en el ranking de Burgos, inicia sesión de forma segura.
+                Para comenzar a registrar tus carreras y competir en el ranking de tu ciudad, inicia sesión de forma segura.
               </p>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', width: '100%' }}>
@@ -2423,7 +2676,7 @@ ${segments.join('\n')}
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>Paso 2: Conectar Strava 🧡</h2>
               <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.6', marginBottom: '20px' }}>
-                BusRun sincroniza tus recorridos de Strava. Conecta tu cuenta de Strava para empezar a registrar tus actividades reales.
+                MetroMile sincroniza tus recorridos de Strava. Conecta tu cuenta de Strava para empezar a registrar tus actividades reales.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', marginBottom: '16px' }}>
@@ -2492,9 +2745,9 @@ ${segments.join('\n')}
               {(!tutorialStep || tutorialStep === 1) && (
                 <div>
                   <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>⚡</div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>¡Bienvenido/a a BusRun!</h3>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>¡Bienvenido/a a MetroMile!</h3>
                   <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
-                    BusRun es la red social deportiva de corredores urbanos. Tu misión es <strong>completar las líneas de transporte urbano</strong> corriendo o caminando por su trazado de paradas.
+                    MetroMile es la red social deportiva de corredores urbanos. Tu misión es <strong>completar las líneas de transporte urbano</strong> corriendo o caminando por su trazado de paradas.
                   </p>
                 </div>
               )}
@@ -2502,9 +2755,9 @@ ${segments.join('\n')}
               {tutorialStep === 2 && (
                 <div>
                   <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>🏆</div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>Progresión y Rango</h3>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>Progresión y Rango Global</h3>
                   <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
-                    Cada línea completada suma porcentaje a tu progresión. Pasa de ser un simple <strong>Dominguero (0%)</strong> hasta el legendario <strong>Cid Campeador (100%)</strong> a través de 10 niveles acumulables.
+                    Cada línea completada suma porcentaje a tu progresión. Pasa de ser un simple <strong>Transeúnte (0%)</strong> hasta el legendario <strong>Leyenda del Tránsito (100%)</strong>.
                   </p>
                 </div>
               )}
@@ -2574,7 +2827,7 @@ ${segments.join('\n')}
                       localStorage.setItem('busrun-tutorial-seen', 'true');
                       localStorage.setItem('busrun-onboarding-completed', 'true');
                       setOnboardingCompleted(true);
-                      addNotification('Social', '¡Registro y tutorial completado! Bienvenido a BusRun.', 'success');
+                      addNotification('Social', '¡Registro y tutorial completado! Bienvenido a MetroMile.', 'success');
                     }}
                     style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--accent-green)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
                   >
@@ -2589,11 +2842,10 @@ ${segments.join('\n')}
     );
   }
 
-  const isCityTransportSupported = 
-    (activeCity === 'burgos' && activeTransport === 'bus') ||
-    (activeCity === 'madrid' && activeTransport === 'metro') ||
-    (activeCity === 'barcelona' && activeTransport === 'metro') ||
-    (activeCity === 'bilbao' && activeTransport === 'metro');
+  const isCityTransportSupported = useMemo(() => {
+    const city = citiesList.find(c => c.id === activeCity);
+    return city ? city.transports.includes(activeTransport) : false;
+  }, [citiesList, activeCity, activeTransport]);
 
   return (
     <div className="app-shell">
@@ -2612,7 +2864,7 @@ ${segments.join('\n')}
         <div className="header-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '16px' }}>
           <div className="logo-flex" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setActiveTab('feed')}>
             <span className="logo-icon" style={{ fontSize: '1.8rem', background: 'linear-gradient(135deg, #ff7e40, var(--brand-orange))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>⚡</span>
-            <h1 style={{ fontSize: '1.6rem', fontWeight: '900', letterSpacing: '-0.02em', margin: 0, color: 'white' }}>BusRun</h1>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: '900', letterSpacing: '-0.02em', margin: 0, color: 'white' }}>MetroMile</h1>
           </div>
           
           <div className="right-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -2749,30 +3001,30 @@ ${segments.join('\n')}
           <button 
             className={`nav-tab-btn ${activeTab === 'feed' ? 'active' : ''}`}
             onClick={() => setActiveTab('feed')}
-            style={{ flex: 1 }}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
-            💬 Feed Social
+            <Icons.Feed /> Feed Social
           </button>
           <button 
             className={`nav-tab-btn ${activeTab === 'map' ? 'active' : ''}`}
             onClick={() => setActiveTab('map')}
-            style={{ flex: 1 }}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
-            🗺️ Mapa y Líneas
+            <Icons.Map /> Mapa y Líneas
           </button>
           <button 
             className={`nav-tab-btn ${activeTab === 'search' ? 'active' : ''}`}
             onClick={() => setActiveTab('search')}
-            style={{ flex: 1 }}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
-            🔍 Atletas
+            <Icons.Search /> Atletas
           </button>
           <button 
             className={`nav-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => setActiveTab('profile')}
-            style={{ flex: 1 }}
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
-            👤 Mi Perfil
+            <Icons.Profile /> Mi Perfil
           </button>
         </nav>
       </header>
@@ -2799,7 +3051,7 @@ ${segments.join('\n')}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left' }}>
             <span style={{ fontSize: '2rem' }}>📱</span>
             <div>
-              <strong style={{ display: 'block', fontSize: '0.95rem' }}>Descargar BusRun App</strong>
+              <strong style={{ display: 'block', fontSize: '0.95rem' }}>Descargar MetroMile App</strong>
               <span style={{ fontSize: '0.8rem', opacity: 0.9, display: 'block', marginTop: '2px' }}>
                 {isIos 
                   ? 'Instala la app en tu iPhone para correr a pantalla completa con GPS y mapas.'
@@ -2923,11 +3175,11 @@ ${segments.join('\n')}
                     <span className="progress-label">Rango: {currentRank.title} {currentRank.icon}</span>
                     {globalCompletionPercentage < 100 ? (
                       <span className="next-rank-lbl">
-                        Siguiente rango: <strong>{BURGOS_RANKS.find(r => r.minPercentage > globalCompletionPercentage)?.name}</strong> 
-                        (requiere alcanzar el {BURGOS_RANKS.find(r => r.minPercentage > globalCompletionPercentage)!.minPercentage}%)
+                        Siguiente rango: <strong>{GLOBAL_RANKS.find(r => r.minPercentage > globalCompletionPercentage)?.name}</strong> 
+                        (requiere alcanzar el {GLOBAL_RANKS.find(r => r.minPercentage > globalCompletionPercentage)!.minPercentage}%)
                       </span>
                     ) : (
-                      <span className="next-rank-lbl text-gold">¡Héroe del Arlanzón: 100% completado! ⚔️</span>
+                      <span className="next-rank-lbl text-gold">¡Héroe del Tránsito: 100% completado! ⚔️</span>
                     )}
                   </div>
 
@@ -2985,6 +3237,7 @@ ${segments.join('\n')}
                       Ver la Línea {aiRecommendation.line.ref} en el Mapa ➔
                     </button>
                   )}
+                  <SponsorAdSenseBanner />
                 </div>
               </aside>
 
@@ -3184,7 +3437,9 @@ ${segments.join('\n')}
                                 </button>
                               )}
                             </h4>
-                            <span className="act-date">{act.date}</span>
+                            <span className="act-date">
+                              {act.date} • 📍 {act.cityId ? (citiesList.find(c => c.id === act.cityId)?.name || act.cityId.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : 'Burgos'}
+                            </span>
                           </div>
                         </div>
                         <div className="act-ref-badge" onClick={() => { setSelectedLineId(act.lineId); setActiveTab('map'); }}>
@@ -3680,6 +3935,7 @@ ${segments.join('\n')}
                   )}
                 </MapContainer>
               </div>
+              <SponsorAdSenseBanner />
             </div>
           )}
 
@@ -3745,17 +4001,37 @@ ${segments.join('\n')}
                   </div>
                   <div className="profile-main-meta">
                     <div className="profile-name-badge">
-                      <h2>{userProfile.name}</h2>
+                      <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {userProfile.name}
+                        <button 
+                          onClick={() => { setSettingsActiveTab('profile'); setShowSettingsModal(true); }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--brand-orange)',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: 0.8,
+                            transition: 'opacity 0.2s'
+                          }}
+                          className="btn-edit-pencil"
+                          title="Editar Perfil"
+                        >
+                          <Icons.Pencil />
+                        </button>
+                      </h2>
                       <span className="profile-rank-badge">{currentRank.title} {currentRank.icon}</span>
                     </div>
-                    <p className="city-label">Burgos, Castilla y León</p>
-                    <p className="bio">{userProfile.bio}</p>
+                    <p className="city-label" style={{ color: '#cbd5e1' }}>📍 {userProfile.location || 'Burgos, España'}</p>
+                    <p className="bio" style={{ fontStyle: 'italic', margin: '4px 0 0 0', fontSize: '0.85rem' }}>{userProfile.bio || 'Sin biografía añadida.'}</p>
                   </div>
                 </div>
 
                 <div className="profile-stats-grid">
                   <div className="profile-stat-box">
-                    <span className="lbl">Líneas en Burgos</span>
+                    <span className="lbl">Líneas en {citiesList.find(c => c.id === activeCity)?.name || 'Activa'}</span>
                     <span className="val">{burgosCompletedUniqueCount} <span className="sub">de {totalBurgosLinesCount}</span></span>
                   </div>
                   <div className="profile-stat-box">
@@ -3774,7 +4050,7 @@ ${segments.join('\n')}
 
                 <div className="profile-bar-completion">
                   <div className="header-bar">
-                    <span>% Ciudad de Burgos Completada</span>
+                    <span>% Ciudad de {citiesList.find(c => c.id === activeCity)?.name || 'Activa'} Completada</span>
                     <strong>{burgosCompletionPercentage.toFixed(0)}%</strong>
                   </div>
                   <div className="bar-bg">
@@ -3855,7 +4131,7 @@ ${segments.join('\n')}
                 </p>
                 
                 <div className="medals-grid">
-                  {BURGOS_RANKS.map((rank) => {
+                  {GLOBAL_RANKS.map((rank) => {
                     const isUnlocked = globalCompletionPercentage >= rank.minPercentage;
                     return (
                       <div key={rank.id} className={`medal-card rank-card ${isUnlocked ? 'unlocked' : 'locked'} ${currentRank.id === rank.id ? 'current-active-rank' : ''}`}>
@@ -4030,13 +4306,13 @@ ${segments.join('\n')}
               }}>
                 <div style={{ fontSize: '2rem' }}>☕</div>
                 <div>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', color: 'white' }}>¿Te gusta BusRun?</h4>
+                  <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', color: 'white' }}>¿Te gusta MetroMile?</h4>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: '#cbd5e1', lineHeight: '1.4', maxWidth: '380px' }}>
                     Este es un proyecto open-source de carrera urbana. Si quieres apoyar el coste de servidores y el desarrollo, ¡invítame a un café!
                   </p>
                 </div>
                 <a 
-                  href="https://buymeacoffee.com/felixbusrun" 
+                  href="https://buymeacoffee.com/felixmetromile" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   style={{
@@ -4235,9 +4511,9 @@ ${segments.join('\n')}
             {tutorialStep === 1 && (
               <div>
                 <div style={{ fontSize: '3rem', margin: '16px 0' }}>⚡</div>
-                <h3>¡Bienvenido/a a BusRun!</h3>
+                <h3>¡Bienvenido/a a MetroMile!</h3>
                 <p style={{ margin: '12px 0 20px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-                  BusRun es la red social deportiva de corredores urbanos. Tu misión es <strong>completar las líneas de transporte urbano</strong> corriendo o caminando por su trazado de paradas.
+                  MetroMile es la red social deportiva de corredores urbanos. Tu misión es <strong>completar las líneas de transporte urbano</strong> corriendo o caminando por su trazado de paradas.
                 </p>
               </div>
             )}
@@ -4245,9 +4521,9 @@ ${segments.join('\n')}
             {tutorialStep === 2 && (
               <div>
                 <div style={{ fontSize: '3rem', margin: '16px 0' }}>🏆</div>
-                <h3>Progresión y Rango Burgalés</h3>
+                <h3>Progresión y Rango Global</h3>
                 <p style={{ margin: '12px 0 20px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-                  Cada línea completada suma porcentaje a tu progresión. Pasa de ser un simple <strong>Dominguero (0%)</strong> hasta el legendario <strong>Cid Campeador (100%)</strong> a través de 10 niveles acumulables.
+                  Cada línea completada suma porcentaje a tu progresión. Pasa de ser un simple <strong>Transeúnte (0%)</strong> hasta el legendario <strong>Leyenda del Tránsito (100%)</strong>.
                 </p>
               </div>
             )}
@@ -4329,58 +4605,93 @@ ${segments.join('\n')}
       {/* User Configurations Settings Modal */}
       {showSettingsModal && (
         <div className="login-modal-overlay" style={{ zIndex: 999999 }}>
-          <div className="login-modal-card" style={{ width: '100%', maxWidth: '460px', padding: '24px' }}>
-            <h3>Configuración y Preferencias ⚙️</h3>
+          <div className="login-modal-card" style={{ width: '100%', maxWidth: '500px', padding: '24px' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 16px 0', fontSize: '1.25rem' }}>
+              <Icons.Gear style={{ width: '22px', height: '22px', color: 'var(--brand-orange)' }} />
+              Configuración y Preferencias
+            </h3>
             
             {/* Tabs inside settings modal */}
-            <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '16px', overflowX: 'auto', gap: '4px', whiteSpace: 'nowrap', paddingBottom: '4px' }}>
               <button 
                 onClick={() => setSettingsActiveTab('profile')}
                 style={{
                   flex: 1,
-                  padding: '10px 4px',
+                  padding: '10px 6px',
                   background: 'transparent',
                   border: 'none',
                   borderBottom: settingsActiveTab === 'profile' ? '2px solid var(--brand-orange)' : 'none',
                   color: settingsActiveTab === 'profile' ? 'var(--brand-orange)' : '#ccc',
                   fontWeight: 'bold',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer'
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
                 }}
               >
-                Mi Perfil
-              </button>
-              <button 
-                onClick={() => setSettingsActiveTab('devices')}
-                style={{
-                  flex: 1,
-                  padding: '10px 4px',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: settingsActiveTab === 'devices' ? '2px solid var(--brand-orange)' : 'none',
-                  color: settingsActiveTab === 'devices' ? 'var(--brand-orange)' : '#ccc',
-                  fontWeight: 'bold',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Dispositivos
+                <Icons.Profile style={{ width: '14px', height: '14px' }} /> Perfil
               </button>
               <button 
                 onClick={() => setSettingsActiveTab('preferences')}
                 style={{
                   flex: 1,
-                  padding: '10px 4px',
+                  padding: '10px 6px',
                   background: 'transparent',
                   border: 'none',
                   borderBottom: settingsActiveTab === 'preferences' ? '2px solid var(--brand-orange)' : 'none',
                   color: settingsActiveTab === 'preferences' ? 'var(--brand-orange)' : '#ccc',
                   fontWeight: 'bold',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer'
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
                 }}
               >
-                Ajustes App
+                <Icons.Gear style={{ width: '14px', height: '14px' }} /> Ajustes
+              </button>
+              <button 
+                onClick={() => setSettingsActiveTab('devices')}
+                style={{
+                  flex: 1,
+                  padding: '10px 6px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: settingsActiveTab === 'devices' ? '2px solid var(--brand-orange)' : 'none',
+                  color: settingsActiveTab === 'devices' ? 'var(--brand-orange)' : '#ccc',
+                  fontWeight: 'bold',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Icons.Link style={{ width: '14px', height: '14px' }} /> Enlaces
+              </button>
+              <button 
+                onClick={() => setSettingsActiveTab('info')}
+                style={{
+                  flex: 1,
+                  padding: '10px 6px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: settingsActiveTab === 'info' ? '2px solid var(--brand-orange)' : 'none',
+                  color: settingsActiveTab === 'info' ? 'var(--brand-orange)' : '#ccc',
+                  fontWeight: 'bold',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Icons.Info style={{ width: '14px', height: '14px' }} /> Legal & Soporte
               </button>
             </div>
 
@@ -4566,13 +4877,19 @@ ${segments.join('\n')}
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: '#cbd5e1' }}>Ciudad Activa:</label>
                   <select 
                     value={activeCity}
-                    onChange={(e) => setActiveCity(e.target.value)}
+                    onChange={(e) => {
+                      const selectedVal = e.target.value;
+                      setActiveCity(selectedVal);
+                      const city = citiesList.find(c => c.id === selectedVal);
+                      if (city && city.transports && city.transports.length > 0) {
+                        setActiveTransport(city.transports[0]);
+                      }
+                    }}
                     style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#333', color: 'white', border: '1px solid #555', fontSize: '0.85rem', cursor: 'pointer' }}
                   >
-                    <option value="burgos">Burgos</option>
-                    <option value="madrid">Madrid</option>
-                    <option value="barcelona">Barcelona</option>
-                    <option value="bilbao">Bilbao</option>
+                    {citiesList.map(city => (
+                      <option key={city.id} value={city.id}>{city.name} ({city.country})</option>
+                    ))}
                   </select>
                 </div>
 
@@ -4583,8 +4900,13 @@ ${segments.join('\n')}
                     onChange={(e) => setActiveTransport(e.target.value)}
                     style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#333', color: 'white', border: '1px solid #555', fontSize: '0.85rem', cursor: 'pointer' }}
                   >
-                    <option value="bus">Autobús Urbano</option>
-                    <option value="metro">Metro</option>
+                    {citiesList.find(c => c.id === activeCity)?.transports.map(t => (
+                      <option key={t} value={t}>
+                        {t === 'bus' ? 'Autobús Urbano' : t === 'metro' ? 'Metro' : t === 'tram' ? 'Tranvía' : t === 'light_rail' ? 'Metro Ligero' : t.toUpperCase()}
+                      </option>
+                    )) || (
+                      <option value="bus">Autobús Urbano</option>
+                    )}
                   </select>
                 </div>
 
@@ -4651,12 +4973,12 @@ ${segments.join('\n')}
                   </span>
                   {isStandalone ? (
                     <p style={{ margin: 0, fontSize: '0.75rem', color: '#10b981', lineHeight: '1.4' }}>
-                      Estás ejecutando BusRun en modo aplicación a pantalla completa. ¡Excelente!
+                      Estás ejecutando MetroMile en modo aplicación a pantalla completa. ¡Excelente!
                     </p>
                   ) : (
                     <>
                       <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.4' }}>
-                        Instala BusRun en tu teléfono para correr a pantalla completa, sin la barra de direcciones del navegador y con GPS optimizado.
+                        Instala MetroMile en tu teléfono para correr a pantalla completa, sin la barra de direcciones del navegador y con GPS optimizado.
                       </p>
                       <button
                         onClick={handleInstallPwa}
@@ -4686,6 +5008,69 @@ ${segments.join('\n')}
                     </>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Tab 4: Legal, Soporte, Licencias, Quienes somos */}
+            {settingsActiveTab === 'info' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', marginBottom: '20px', maxHeight: '350px', overflowY: 'auto', paddingRight: '6px' }}>
+                
+                {/* Quienes Somos */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Icons.Profile style={{ width: '16px', height: '16px' }} /> ¿Quiénes Somos?
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                    <strong>MetroMile</strong> es un proyecto nacido de la pasión por el running urbano y la movilidad sostenible. Conectamos a deportistas de todo el mundo para retar a las líneas de transporte público locales: metros, autobuses y tranvías. ¡Conviértete en la leyenda del transporte subterráneo y terrestre de tu ciudad!
+                  </p>
+                </div>
+
+                {/* Soporte y Contacto */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Icons.Phone style={{ width: '14px', height: '14px' }} /> Contacto y Soporte
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.75rem', color: '#cbd5e1' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Icons.Mail style={{ color: '#10b981', width: '16px', height: '16px' }} />
+                      <span>Email: <a href="mailto:support@metromile.app" style={{ color: '#34d399', textDecoration: 'none' }}>support@metromile.app</a></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Icons.Phone style={{ color: '#10b981', width: '16px', height: '16px' }} />
+                      <span>Teléfono: <a href="tel:+34900123456" style={{ color: '#34d399', textDecoration: 'none' }}>+34 900 123 456</a> (L-V 9:00 - 18:00 CET)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Privacidad */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: '#fb7185', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Icons.Shield style={{ width: '16px', height: '16px' }} /> Privacidad
+                  </h4>
+                  <p style={{ margin: '0 0 6px 0', fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                    Cumplimos estrictamente con el <strong>RGPD</strong> de la UE y la <strong>CCPA</strong> de California. Tus datos de geolocalización solo se procesan localmente en tu dispositivo para validar las rutas de transporte en las que corres y no son comercializados con terceros.
+                  </p>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                    • Tienes derecho a exportar tus actividades en formato GPX/FIT.<br />
+                    • Puedes eliminar tu cuenta de forma permanente desde tu perfil en cualquier momento.
+                  </div>
+                </div>
+
+                {/* Términos Legales y Licencias */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Icons.Info style={{ width: '16px', height: '16px' }} /> Términos y Licencias
+                  </h4>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                    Al utilizar MetroMile aceptas que no somos responsables de incidentes ocurridos durante tus carreras. Corre siempre por zonas habilitadas para peatones y respeta las normas de tráfico.
+                  </p>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '6px' }}>
+                    <strong>Licencias de Código Abierto:</strong><br />
+                    • Licencia MIT (c) 2026 MetroMile Team.<br />
+                    • React, TypeScript, Vite, Leaflet Maps (BSD 2-Clause), Supabase SDK.
+                  </div>
+                </div>
+
               </div>
             )}
 
@@ -4854,28 +5239,36 @@ ${segments.join('\n')}
           className={`bottom-nav-item ${activeTab === 'feed' ? 'active' : ''}`}
           onClick={() => setActiveTab('feed')}
         >
-          <span className="bottom-nav-icon">🏠</span>
+          <span className="bottom-nav-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icons.Feed />
+          </span>
           <span>Feed</span>
         </button>
         <button 
           className={`bottom-nav-item ${activeTab === 'map' ? 'active' : ''}`}
           onClick={() => setActiveTab('map')}
         >
-          <span className="bottom-nav-icon">📍</span>
+          <span className="bottom-nav-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icons.Map />
+          </span>
           <span>Mapa</span>
         </button>
         <button 
           className={`bottom-nav-item ${activeTab === 'search' ? 'active' : ''}`}
           onClick={() => setActiveTab('search')}
         >
-          <span className="bottom-nav-icon">🔍</span>
+          <span className="bottom-nav-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icons.Search />
+          </span>
           <span>Buscador</span>
         </button>
         <button 
           className={`bottom-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
           onClick={() => setActiveTab('profile')}
         >
-          <span className="bottom-nav-icon">👤</span>
+          <span className="bottom-nav-icon" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icons.Profile />
+          </span>
           <span>Perfil</span>
         </button>
       </nav>

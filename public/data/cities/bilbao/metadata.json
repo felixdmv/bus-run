@@ -1,0 +1,28 @@
+[
+  {
+    "id": "8753520",
+    "name": "T1 (La Casilla → Bolueta)",
+    "ref": "T1",
+    "description": "Ruta real de tram urbano gestionada por Eusko Trenbideak – Ferrocarriles Vascos.",
+    "distanceKm": 18.83,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 15064,
+    "estRunningSeconds": 6162,
+    "stopsCount": 16,
+    "transport_type": "tram"
+  },
+  {
+    "id": "8753521",
+    "name": "T1 (Bolueta → La Casilla)",
+    "ref": "T1",
+    "description": "Ruta real de tram urbano gestionada por Eusko Trenbideak – Ferrocarriles Vascos.",
+    "distanceKm": 18.93,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 15141,
+    "estRunningSeconds": 6194,
+    "stopsCount": 16,
+    "transport_type": "tram"
+  }
+]

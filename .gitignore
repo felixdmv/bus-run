@@ -22,3 +22,10 @@ yarn-error.log*
 .idea/
 .DS_Store
 .antigravitycli/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/

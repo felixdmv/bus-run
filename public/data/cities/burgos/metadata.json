@@ -1,0 +1,67 @@
+[
+  {
+    "id": "2097938",
+    "name": "L01: Gamonal → Avda. Arlanzón",
+    "ref": "L01",
+    "description": "Ruta real de bus urbano gestionada por Servicio Municipalizado de Movilidad y Transportes.",
+    "distanceKm": 3.42,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 2737,
+    "estRunningSeconds": 1120,
+    "stopsCount": 22,
+    "transport_type": "bus"
+  },
+  {
+    "id": "2099651",
+    "name": "L01: Avda. Arlanzón → Gamonal",
+    "ref": "L01",
+    "description": "Ruta real de bus urbano gestionada por Servicio Municipalizado de Movilidad y Transportes.",
+    "distanceKm": 3.37,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 2692,
+    "estRunningSeconds": 1101,
+    "stopsCount": 20,
+    "transport_type": "bus"
+  },
+  {
+    "id": "2101005",
+    "name": "L06: Ismael García Rámila → Plaza España",
+    "ref": "L06",
+    "description": "Ruta real de bus urbano gestionada por Servicio Municipalizado de Movilidad y Transportes.",
+    "distanceKm": 3.56,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 2851,
+    "estRunningSeconds": 1166,
+    "stopsCount": 22,
+    "transport_type": "bus"
+  },
+  {
+    "id": "2101205",
+    "name": "L08: Villafría → Cótar → Gran Teatro",
+    "ref": "L08",
+    "description": "Ruta real de bus urbano gestionada por Servicio Municipalizado de Movilidad y Transportes.",
+    "distanceKm": 14.68,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 11745,
+    "estRunningSeconds": 4805,
+    "stopsCount": 42,
+    "transport_type": "bus"
+  },
+  {
+    "id": "2102473",
+    "name": "L06: Plaza España → Ismael García Rámila",
+    "ref": "L06",
+    "description": "Ruta real de bus urbano gestionada por Servicio Municipalizado de Movilidad y Transportes.",
+    "distanceKm": 3.08,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 2467,
+    "estRunningSeconds": 1009,
+    "stopsCount": 22,
+    "transport_type": "bus"
+  }
+]

@@ -1,11 +1,11 @@
 {
-  "name": "BusRun - Red Social de Running Urbano",
-  "short_name": "BusRun",
-  "description": "Sincroniza tus relojes deportivos y completa las líneas de autobús de tu ciudad corriendo o caminando.",
+  "name": "MetroMile - Red Social de Running Urbano",
+  "short_name": "MetroMile",
+  "description": "Sincroniza tus relojes deportivos y completa las líneas de transporte urbano de tu ciudad corriendo o caminando.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#121212",
-  "theme_color": "#fc5200",
+  "theme_color": "#2563eb",
   "orientation": "portrait",
   "icons": [
     {

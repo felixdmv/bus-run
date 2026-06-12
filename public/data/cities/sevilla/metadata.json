@@ -1,0 +1,28 @@
+[
+  {
+    "id": "36937",
+    "name": "T1 - Plaza Nueva - Luis Morales",
+    "ref": "T1",
+    "description": "Ruta real de tram urbano gestionada por Tussam.",
+    "distanceKm": 6.08,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 4861,
+    "estRunningSeconds": 1988,
+    "stopsCount": 7,
+    "transport_type": "tram"
+  },
+  {
+    "id": "20188918",
+    "name": "T1 - Luis Morales - Plaza Nueva",
+    "ref": "T1",
+    "description": "Ruta real de tram urbano gestionada por Tussam.",
+    "distanceKm": 6.57,
+    "elevationGain": 0.0,
+    "elevationLoss": 0.0,
+    "estWalkingSeconds": 5258,
+    "estRunningSeconds": 2151,
+    "stopsCount": 7,
+    "transport_type": "tram"
+  }
+]

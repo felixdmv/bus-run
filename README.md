@@ -1,29 +1,32 @@
-# BusRun
+# MetroMile 🚇🏃‍♂️
 
-Aplicación web inicial para descargar rutas GPX de líneas de transporte urbano y hacer retos deportivos.
+Red social deportiva global para corredores urbanos. Vincula tus actividades y compite por completar las líneas de transporte urbano (metro, tranvía, autobús, tren ligero) de ciudades de todo el mundo.
 
-## Objetivo
-- Empezar con las líneas de bus urbano de Burgos.
-- Mostrar rutas en mapa OpenStreetMap.
-- Descargar rutas seleccionadas en formato GPX.
-- Llevar un perfil con las líneas completadas.
+## Características Principales
+- **Global y Escalable:** Base de datos preparada para soportar miles de ciudades y rutas en todo el mundo.
+- **Retos de Transporte:** Elige tu ciudad, selecciona una línea de metro, tranvía o bus y complétala recorriendo su trazado de parada a parada.
+- **Sincronización:** Conéctate con Strava o Google para validar tus actividades automáticamente mediante GPS.
+- **Comunidad y Feed Social:** Sigue a otros atletas, comenta sus entrenamientos, comparte fotos y sube de rango desde *Transeúnte* a *Leyenda del Tránsito*.
+- **PWA Listada:** Instala la aplicación en tu móvil para correr a pantalla completa con geolocalización nativa optimizada.
 
-## Tecnologías propuestas
-- Frontend: `React` + `Vite` + `TypeScript`
-- Mapa: `Leaflet` + `OpenStreetMap`
-- Descarga GPX: generación desde coordenadas en el navegador
-- Almacenamiento inicial: `localStorage`
+## Tecnologías
+- **Frontend:** React + Vite + TypeScript.
+- **Mapas:** Leaflet + OpenStreetMap.
+- **Backend & Auth:** Supabase (PostgreSQL para almacenamiento y autenticación OAuth de Google).
+- **Integraciones:** API de Strava para sincronización en segundo plano.
 
-## Cómo instalar
+## Cómo ejecutar en local
 
 ```bash
-cd "c:/Users/felix/Documents/Proyectos Personales/BusRun"
+# Instalar dependencias
 npm install
+
+# Iniciar servidor de desarrollo
 npm run dev
+
+# Compilar para producción
+npm run build
 ```
 
-## Qué sigue
-1. Añadir datos reales de las líneas de Burgos.
-2. Extraer trazados desde OpenStreetMap, GTFS o la fuente del ayuntamiento.
-3. Convertir el proyecto en PWA y/o empaquetarlo con Capacitor para móvil.
-4. Añadir usuario / login y seguimiento de retos.
+## Licencia
+Distribuido bajo la Licencia MIT. Ver Ajustes en la app para más detalles.

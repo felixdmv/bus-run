@@ -1,13 +1,65 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
-  <rect width="512" height="512" rx="128" fill="#fc5200"/>
-  <!-- Stylized route line -->
-  <path d="M 100 412 C 150 350, 180 200, 256 256 C 320 300, 360 120, 412 100" fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round"/>
-  <!-- Glowing map pin -->
-  <circle cx="412" cy="100" r="30" fill="#ffea00"/>
-  <!-- Running athlete figure -->
-  <path d="M 230 180 C 240 170, 250 170, 260 180 C 270 190, 260 210, 250 210 C 240 210, 220 190, 230 180 Z" fill="#ffffff"/>
-  <path d="M 220 220 L 260 250 L 240 300 L 270 360" stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none"/>
-  <path d="M 260 250 L 290 230 L 320 270" stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none"/>
-  <path d="M 220 220 L 200 260 L 170 280" stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none"/>
-  <path d="M 240 300 L 200 330 L 190 370" stroke="#ffffff" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020617" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    
+    <!-- Neon Cyan Glow -->
+    <filter id="cyanGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Neon Cobalt Glow -->
+    <filter id="cobaltGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded App Icon Background -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle Grid lines representing city coordinates -->
+  <line x1="64" y1="0" x2="64" y2="512" stroke="rgba(255,255,255,0.02)" stroke-width="2"/>
+  <line x1="192" y1="0" x2="192" y2="512" stroke="rgba(255,255,255,0.02)" stroke-width="2"/>
+  <line x1="320" y1="0" x2="320" y2="512" stroke="rgba(255,255,255,0.02)" stroke-width="2"/>
+  <line x1="448" y1="0" x2="448" y2="512" stroke="rgba(255,255,255,0.02)" stroke-width="2"/>
+  <line x1="0" y1="64" x2="512" y2="64" stroke="rgba(255,255,255,0.02)" stroke-width="2"/>
+  <line x1="0" y1="192" x2="512" y2="192" stroke="rgba(255,255,255,0.02)" stroke-width="2"/>
+  <line x1="0" y1="320" x2="512" y2="320" stroke="rgba(255,255,255,0.02)" stroke-width="2"/>
+  <line x1="0" y1="448" x2="512" y2="448" stroke="rgba(255,255,255,0.02)" stroke-width="2"/>
+
+  <!-- Metro Line 1 (Neon Cobalt Blue - Outer Line of M) -->
+  <path d="M 110 390 L 110 190 C 110 130, 160 130, 190 180 L 256 290 L 322 180 C 352 130, 402 130, 402 190 L 402 390" 
+        fill="none" stroke="#2563eb" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" filter="url(#cobaltGlow)"/>
+
+  <!-- Metro Line 2 (Neon Cyan - Inner Line/Intersecting Track) -->
+  <path d="M 134 390 L 134 200 C 134 160, 170 160, 190 190 L 256 300 L 322 190 C 342 160, 378 160, 378 200 L 378 390" 
+        fill="none" stroke="#38bdf8" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" filter="url(#cyanGlow)"/>
+
+  <!-- White active line overlay to show the "runner" path -->
+  <path d="M 110 390 L 110 190 C 110 130, 160 130, 190 180 L 256 290" 
+        fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Stations (Metro Nodes) -->
+  <!-- Start Node (Terminus) -->
+  <circle cx="110" cy="390" r="20" fill="#0f172a" stroke="#2563eb" stroke-width="6"/>
+  <circle cx="110" cy="390" r="8" fill="#ffffff"/>
+
+  <!-- Intersection Node (Center Peak) -->
+  <circle cx="256" cy="295" r="22" fill="#0f172a" stroke="#38bdf8" stroke-width="6"/>
+  <circle cx="256" cy="295" r="10" fill="#ffffff" filter="url(#cyanGlow)"/>
+
+  <!-- End Node (Terminus) -->
+  <circle cx="402" cy="390" r="20" fill="#0f172a" stroke="#2563eb" stroke-width="6"/>
+  <circle cx="402" cy="390" r="8" fill="#ffffff"/>
 </svg>
