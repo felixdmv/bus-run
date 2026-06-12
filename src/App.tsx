@@ -381,6 +381,24 @@ const GLOBAL_RANKS: GlobalRank[] = [
   { id: 'legend', name: 'Leyenda del Tránsito', title: 'Leyenda Urbana Absoluta', minPercentage: 100, description: '¡100%! Has conquistado y corrido absolutamente todas las líneas de la ciudad.', icon: '⚔️' }
 ];
 
+interface VirtualJourney {
+  id: string;
+  nameEs: string;
+  nameEn: string;
+  city: string;
+  totalKm: number;
+  badgeIcon: string;
+  color: string;
+}
+
+const VIRTUAL_JOURNEYS: VirtualJourney[] = [
+  { id: 'london_central', nameEs: 'Londres - Central Line', nameEn: 'London - Central Line', city: 'London', totalKm: 74.0, badgeIcon: '🇬🇧', color: '#e11d48' },
+  { id: 'ny_broadway', nameEs: 'Nueva York - Broadway Express (Línea 2)', nameEn: 'New York - Broadway Express (Line 2)', city: 'New York', totalKm: 40.0, badgeIcon: '🇺🇸', color: '#2563eb' },
+  { id: 'tokyo_yamanote', nameEs: 'Tokio - Yamanote Loop Line', nameEn: 'Tokyo - Yamanote Loop Line', city: 'Tokyo', totalKm: 34.5, badgeIcon: '🇯🇵', color: '#16a34a' },
+  { id: 'paris_line1', nameEs: 'París - Métro Ligne 1', nameEn: 'Paris - Métro Ligne 1', city: 'Paris', totalKm: 16.6, badgeIcon: '🇫🇷', color: '#eab308' },
+  { id: 'madrid_line6', nameEs: 'Madrid - Circular Línea 6', nameEn: 'Madrid - Circular Line 6', city: 'Madrid', totalKm: 23.5, badgeIcon: '🇪🇸', color: '#a855f7' }
+];
+
 interface Achievement {
   id: string;
   titleEs: string;
@@ -719,6 +737,43 @@ export default function App() {
   };
 
   const [prestigeCount, setPrestigeCount] = useState(() => Number(localStorage.getItem('metromile-prestige') || '0'));
+
+  const [activeVirtualJourney, setActiveVirtualJourney] = useState(() => localStorage.getItem('metromile-active-journey') || 'london_central');
+  const [virtualProgress, setVirtualProgress] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('metromile-virtual-progress');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const addDistanceToActiveVirtualJourney = (km: number) => {
+    if (km <= 0) return;
+    setVirtualProgress(prev => {
+      const current = prev[activeVirtualJourney] || 0;
+      const nextVal = parseFloat((current + km).toFixed(2));
+      const updated = {
+        ...prev,
+        [activeVirtualJourney]: nextVal
+      };
+      localStorage.setItem('metromile-virtual-progress', JSON.stringify(updated));
+      
+      const journey = VIRTUAL_JOURNEYS.find(j => j.id === activeVirtualJourney);
+      if (journey && current < journey.totalKm && nextVal >= journey.totalKm) {
+        setTimeout(() => {
+          addNotification(
+            'MetroMile', 
+            userSettings.lang === 'es' 
+              ? `🎉 ¡Viaje Virtual Completado! Has conquistado la línea ${journey.nameEs} (${journey.totalKm} km).` 
+              : `🎉 Virtual Journey Completed! You've conquered the ${journey.nameEn} line (${journey.totalKm} km).`, 
+            'success'
+          );
+        }, 100);
+      }
+      return updated;
+    });
+  };
 
   const handlePrestigeReset = () => {
     const nextCount = prestigeCount + 1;
@@ -1428,8 +1483,28 @@ export default function App() {
   };
 
   const saveFeed = (newFeed: UserActivity[]) => {
-    setFeedActivities(newFeed);
-    localStorage.setItem(STORAGE_FEED_KEY, JSON.stringify(newFeed));
+    const currentIds = new Set(feedActivities.map(a => a.id));
+    const newActivities = newFeed.filter(a => !currentIds.has(a.id));
+    
+    let addedKm = 0;
+    newActivities.forEach(act => {
+      if (act.distanceKm > 0) {
+        addedKm += act.distanceKm;
+      }
+    });
+    if (addedKm > 0) {
+      addDistanceToActiveVirtualJourney(addedKm);
+    }
+
+    const updatedFeed = newFeed.map(act => {
+      if (act.cityId === 'burgos' && activeCity !== 'burgos') {
+        return { ...act, cityId: activeCity };
+      }
+      return act;
+    });
+
+    setFeedActivities(updatedFeed);
+    localStorage.setItem(STORAGE_FEED_KEY, JSON.stringify(updatedFeed));
   };
 
   const saveFavorites = (newFavs: Record<string, boolean>) => {
@@ -1563,7 +1638,7 @@ export default function App() {
       const detectedLine = bestMatchLine as LineRoute;
       const newCompleted = {
         ...completed,
-        [`burgos_${detectedLine.ref}`]: {
+        [`${activeCity}_${detectedLine.ref}`]: {
           date: new Date().toLocaleDateString(),
           timeSeconds: finalSeconds,
           type: recordingType,
@@ -1606,7 +1681,7 @@ export default function App() {
         type: recordingType,
         likes: 0,
         comments: [],
-        cityId: 'burgos',
+        cityId: activeCity,
         coords: recordingCoords
       };
 
@@ -1630,7 +1705,7 @@ export default function App() {
         type: recordingType,
         likes: 0,
         comments: [],
-        cityId: 'burgos',
+        cityId: activeCity,
         coords: recordingCoords
       };
 
@@ -1690,7 +1765,7 @@ export default function App() {
 
           const newCompleted = {
             ...completed,
-            [`burgos_${targetLine.ref}`]: {
+            [`${activeCity}_${targetLine.ref}`]: {
               date: new Date().toLocaleDateString(),
               timeSeconds: finalSeconds,
               type: 'running' as const,
@@ -1732,7 +1807,7 @@ export default function App() {
             type: 'running',
             likes: 0,
             comments: [],
-            cityId: 'burgos',
+            cityId: activeCity,
             coords: finalCoords
           };
 
@@ -1924,8 +1999,8 @@ export default function App() {
   }, [burgosBusLines]);
 
   const burgosCompletedUniqueCount = useMemo(() => {
-    return uniqueLineRefs.filter(ref => !!completed[`burgos_${ref}`]).length;
-  }, [completed, uniqueLineRefs]);
+    return uniqueLineRefs.filter(ref => !!completed[`${activeCity}_${ref}`]).length;
+  }, [completed, uniqueLineRefs, activeCity]);
 
   const totalBurgosLinesCount = uniqueLineRefs.length;
   const burgosCompletionPercentage = totalBurgosLinesCount > 0 
@@ -1950,28 +2025,87 @@ export default function App() {
   const totalKmCompleted = useMemo(() => {
     return completedKeys.reduce((sum, key) => {
       const [city, ref] = key.split('_');
-      if (city === 'burgos') {
+      if (city === activeCity) {
         const line = burgosBusLines.find(l => l.ref === ref);
         return sum + (line ? line.distanceKm : 0);
       }
       return sum + 6.8; 
     }, 0);
-  }, [completedKeys, burgosBusLines]);
+  }, [completedKeys, activeCity, burgosBusLines]);
 
   const totalElevationGainCompleted = useMemo(() => {
     return completedKeys.reduce((sum, key) => {
       const [city, ref] = key.split('_');
-      if (city === 'burgos') {
+      if (city === activeCity) {
         const line = burgosBusLines.find(l => l.ref === ref);
         return sum + (line ? line.elevationGain : 0);
       }
       return sum + 40;
     }, 0);
-  }, [completedKeys, burgosBusLines]);
+  }, [completedKeys, activeCity, burgosBusLines]);
 
   const totalTimeSeconds = useMemo(() => {
     return Object.values(completed).reduce((sum, item) => sum + item.timeSeconds, 0);
   }, [completed]);
+
+  const activeCityMedals = useMemo(() => {
+    let gold = 0;
+    let silver = 0;
+    let bronze = 0;
+    uniqueLineRefs.forEach(ref => {
+      const comp = completed[`${activeCity}_${ref}`];
+      if (comp) {
+        const line = burgosBusLines.find(l => l.ref === ref);
+        if (line) {
+          const paceMin = (comp.timeSeconds / 60) / line.distanceKm;
+          if (paceMin < 4.5) gold++;
+          else if (paceMin < 5.5) silver++;
+          else bronze++;
+        } else {
+          const mockPaceMin = (comp.timeSeconds / 60) / 6.8;
+          if (mockPaceMin < 4.5) gold++;
+          else if (mockPaceMin < 5.5) silver++;
+          else bronze++;
+        }
+      }
+    });
+    return { gold, silver, bronze };
+  }, [completed, uniqueLineRefs, activeCity, burgosBusLines]);
+
+  const goldCompletionPercentage = totalBurgosLinesCount > 0 
+    ? (activeCityMedals.gold / totalBurgosLinesCount) * 100 
+    : 0;
+
+  const passportCities = useMemo(() => {
+    const keys = Object.keys(completed);
+    const completedCities = new Set(keys.map(k => k.split('_')[0]));
+    completedCities.add(activeCity);
+    
+    return Array.from(completedCities).map(cityId => {
+      const cityInfo = citiesList.find(c => c.id === cityId) || { name: cityId.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()), country: '' };
+      
+      let totalLines = 0;
+      let completedLines = 0;
+      if (cityId === activeCity) {
+        totalLines = uniqueLineRefs.length;
+        completedLines = uniqueLineRefs.filter(ref => !!completed[`${cityId}_${ref}`]).length;
+      } else {
+        totalLines = cityId === 'burgos' ? 12 : cityId === 'madrid' ? 30 : cityId === 'barcelona' ? 25 : 20;
+        completedLines = keys.filter(k => k.startsWith(`${cityId}_`)).length;
+      }
+      
+      const percent = totalLines > 0 ? Math.min(100, (completedLines / totalLines) * 100) : 0;
+      
+      return {
+        id: cityId,
+        name: cityInfo.name,
+        country: cityInfo.country || 'España',
+        completionPercent: percent,
+        completedCount: completedLines,
+        totalCount: totalLines
+      };
+    });
+  }, [completed, activeCity, citiesList, uniqueLineRefs]);
 
   const currentRank = useMemo(() => {
     let activeRank = GLOBAL_RANKS[0];
@@ -1991,7 +2125,7 @@ export default function App() {
       const stopsMatch = line.stops.some(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesSearch = nameMatch || refMatch || stopsMatch;
 
-      const isCompleted = !!completed[`burgos_${line.ref}`];
+      const isCompleted = !!completed[`${activeCity}_${line.ref}`];
       const matchesStatus = 
         filterType === 'all' || 
         (filterType === 'completed' && isCompleted) || 
@@ -2453,8 +2587,10 @@ export default function App() {
       return { line: null, text: 'IA Coach: Cargando datos de transporte de la ciudad...', actionable: false };
     }
 
+    const activeCityName = citiesList.find(c => c.id === activeCity)?.name || 'Activa';
+
     if (!userLocation) {
-      const recommended = aggregatedLines.find(line => !completed[`burgos_${line.ref}`]);
+      const recommended = aggregatedLines.find(line => !completed[`${activeCity}_${line.ref}`]);
       if (recommended) {
         return {
           line: recommended,
@@ -2464,17 +2600,17 @@ export default function App() {
       }
       return {
         line: null,
-        text: "IA Coach: ¡Enhorabuena! Has completado el 100% de la red de Burgos. ¡Eres el Cid Campeador del asfalto!",
+        text: `IA Coach: ¡Enhorabuena! Has completado el 100% de la red de ${activeCityName}. ¡Eres una auténtica leyenda del asfalto!`,
         actionable: false
       };
     }
 
     // Find all pending aggregated lines
-    const pendingLines = aggregatedLines.filter(line => !completed[`burgos_${line.ref}`]);
+    const pendingLines = aggregatedLines.filter(line => !completed[`${activeCity}_${line.ref}`]);
     if (pendingLines.length === 0) {
       return {
         line: null,
-        text: "IA Coach: ¡Leyenda completada! Tienes el 100% de Burgos. Cambia de ciudad para seguir acumulando porcentaje global.",
+        text: `IA Coach: ¡Leyenda completada! Tienes el 100% de ${activeCityName}. Cambia de ciudad en la configuración para seguir explorando y acumulando porcentaje global.`,
         actionable: false
       };
     }
@@ -2725,7 +2861,7 @@ ${gpxSegments}
     // MOCK SYNC FLOW
     if (stravaConfig.accessToken === 'mock-token') {
       setTimeout(() => {
-        const uncompletedLine = aggregatedLines.find(line => !completed[`burgos_${line.ref}`]) || aggregatedLines[0];
+        const uncompletedLine = aggregatedLines.find(line => !completed[`${activeCity}_${line.ref}`]) || aggregatedLines[0];
         if (!uncompletedLine) {
           addNotification('Strava', 'Sincronización completa. No hay entrenamientos nuevos para importar.', 'info');
           return;
@@ -2736,7 +2872,7 @@ ${gpxSegments}
 
         const newCompleted = {
           ...completed,
-          [`burgos_${uncompletedLine.ref}`]: {
+          [`${activeCity}_${uncompletedLine.ref}`]: {
             date: new Date().toLocaleDateString(),
             timeSeconds: timeEst,
             type: 'running' as const,
@@ -2762,7 +2898,7 @@ ${gpxSegments}
           type: 'running',
           likes: 0,
           comments: [],
-          cityId: 'burgos',
+          cityId: activeCity,
           coords: coords
         };
         saveFeed([newAct, ...feedActivities]);
@@ -2851,7 +2987,7 @@ ${gpxSegments}
         const elevation = run.total_elevation_gain || 0;
 
         if (bestMatchScore >= 70 && bestMatchLine) {
-          updatedCompleted[`burgos_${bestMatchLine.ref}`] = {
+          updatedCompleted[`${activeCity}_${bestMatchLine.ref}`] = {
             date: new Date(run.start_date || Date.now()).toLocaleDateString(),
             timeSeconds: duration,
             type: 'running' as const,
@@ -2873,7 +3009,7 @@ ${gpxSegments}
             type: 'running',
             likes: 0,
             comments: [],
-            cityId: 'burgos',
+            cityId: activeCity,
             coords: runCoords
           });
         } else {
@@ -2893,7 +3029,7 @@ ${gpxSegments}
             type: 'running',
             likes: 0,
             comments: [],
-            cityId: 'burgos',
+            cityId: activeCity,
             coords: runCoords
           });
         }
@@ -2984,7 +3120,7 @@ ${gpxSegments}
       const detectedLine = bestMatchLine as LineRoute;
       const newCompleted = {
         ...completed,
-        [`burgos_${detectedLine.ref}`]: {
+        [`${activeCity}_${detectedLine.ref}`]: {
           date: new Date().toLocaleDateString(),
           timeSeconds: timeSeconds,
           type: uploadActivityType,
@@ -3008,7 +3144,7 @@ ${gpxSegments}
         type: uploadActivityType,
         likes: 0,
         comments: [],
-        cityId: 'burgos',
+        cityId: activeCity,
         coords: gpxCoords
       };
       
@@ -3039,7 +3175,7 @@ ${gpxSegments}
         type: uploadActivityType,
         likes: 0,
         comments: [],
-        cityId: 'burgos',
+        cityId: activeCity,
         coords: gpxCoords
       };
 
@@ -4193,7 +4329,7 @@ ${segments.join('\n')}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span className="route-badge-large">{selectedLine ? selectedLine.ref : ''}</span>
                     <div>
-                      {selectedLine && !!completed[`burgos_${selectedLine.ref}`] ? (
+                      {selectedLine && !!completed[`${activeCity}_${selectedLine.ref}`] ? (
                         <span style={{ background: '#ecfdf5', color: '#10b981', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>✓ Completado</span>
                       ) : (
                         <span style={{ background: '#fef2f2', color: '#ef4444', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>⏱ Pendiente</span>
@@ -4316,7 +4452,7 @@ ${segments.join('\n')}
                   </h4>
                   <div className="stops-sequence-list" style={{ maxHeight: '250px', overflowY: 'auto' }}>
                     {selectedLine ? selectedLine.stops.map((stop, idx) => {
-                      const isLineDone = !!completed[`burgos_${selectedLine.ref}`];
+                      const isLineDone = !!completed[`${activeCity}_${selectedLine.ref}`];
                       return (
                         <div key={stop.id} className="sequence-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-color)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -4575,6 +4711,275 @@ ${segments.join('\n')}
                   </div>
                   <div className="bar-bg">
                     <div className="bar-fill" style={{ width: `${burgosCompletionPercentage}%` }}></div>
+                  </div>
+                </div>
+
+                {/* Medals Breakdown & City Platinum Trophy Progress */}
+                <div className="city-perfection-card card-glow" style={{
+                  background: 'var(--brand-light)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  marginTop: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      🏆 {userSettings.lang === 'es' ? 'Perfección de Ciudad' : 'City Perfection'}
+                    </h4>
+                    {activeCityMedals.gold === totalBurgosLinesCount && totalBurgosLinesCount > 0 ? (
+                      <span className="badge-glow" style={{
+                        background: 'linear-gradient(135deg, #e2e8f0, #94a3b8)',
+                        color: '#1e293b',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        boxShadow: '0 0 10px rgba(255,255,255,0.2)'
+                      }}>
+                        💍 {userSettings.lang === 'es' ? 'PLATINO ADQUIRIDO' : 'PLATINUM CONQUERED'}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {activeCityMedals.gold} / {totalBurgosLinesCount} {userSettings.lang === 'es' ? 'Oros' : 'Golds'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', textAlign: 'center' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '1.2rem' }}>🥇</span>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '2px 0' }}>{activeCityMedals.gold}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{userSettings.lang === 'es' ? 'Ritmo < 4:30' : 'Pace < 4:30'}</div>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '1.2rem' }}>🥈</span>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '2px 0' }}>{activeCityMedals.silver}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{userSettings.lang === 'es' ? 'Ritmo < 5:30' : 'Pace < 5:30'}</div>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '1.2rem' }}>🥉</span>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', margin: '2px 0' }}>{activeCityMedals.bronze}</div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{userSettings.lang === 'es' ? 'Otros ritmos' : 'Other paces'}</div>
+                    </div>
+                  </div>
+
+                  <div className="gold-progress-bar" style={{ marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      <span>{userSettings.lang === 'es' ? 'Progreso hacia Trofeo de Platino (Todas Oro)' : 'Progress to Platinum Trophy (All Gold)'}</span>
+                      <span>{goldCompletionPercentage.toFixed(0)}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--brand-dark-soft)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${goldCompletionPercentage}%`,
+                        background: 'linear-gradient(90deg, #fbbf24, #f59e0b)',
+                        borderRadius: '10px'
+                      }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Virtual Metro Journeys Card */}
+                <div className="virtual-journeys-card card-glow" style={{
+                  background: 'var(--brand-light)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  marginTop: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      🚇 {userSettings.lang === 'es' ? 'Viajes de Metro Virtuales' : 'Virtual Metro Journeys'}
+                    </h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      {userSettings.lang === 'es' 
+                        ? 'Acumula kilómetros corriendo en cualquier lugar y completa líneas icónicas mundiales.' 
+                        : 'Accumulate kilometers running anywhere and conquer iconic transit loops.'}
+                    </p>
+                  </div>
+
+                  {/* Active Journey Progress */}
+                  {(() => {
+                    const journey = VIRTUAL_JOURNEYS.find(j => j.id === activeVirtualJourney) || VIRTUAL_JOURNEYS[0];
+                    const progressKm = virtualProgress[journey.id] || 0;
+                    const percent = Math.min(100, (progressKm / journey.totalKm) * 100);
+                    const isDone = progressKm >= journey.totalKm;
+                    
+                    return (
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '1.2rem' }}>{journey.badgeIcon}</span> {userSettings.lang === 'es' ? journey.nameEs : journey.nameEn}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: isDone ? '#10b981' : 'var(--text-muted)' }}>
+                            {isDone ? '🎉 ¡COMPLETADO!' : `${progressKm.toFixed(1)} / ${journey.totalKm} km`}
+                          </span>
+                        </div>
+                        
+                        <div style={{ height: '8px', background: 'var(--brand-dark-soft)', borderRadius: '10px', overflow: 'hidden', position: 'relative', marginBottom: '6px' }}>
+                          <div style={{
+                            height: '100%',
+                            width: `${percent}%`,
+                            background: journey.color,
+                            borderRadius: '10px',
+                            transition: 'width 0.5s ease'
+                          }}></div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {userSettings.lang === 'es' ? 'Progreso actual de viaje' : 'Current voyage progress'}
+                          </span>
+                          <span style={{ fontWeight: 'bold', color: 'white' }}>{percent.toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Selector to change active journey */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>
+                      {userSettings.lang === 'es' ? 'Seleccionar Viaje Virtual Activo:' : 'Select Active Virtual Journey:'}
+                    </label>
+                    <select
+                      value={activeVirtualJourney}
+                      onChange={(e) => {
+                        setActiveVirtualJourney(e.target.value);
+                        localStorage.setItem('metromile-active-journey', e.target.value);
+                      }}
+                      style={{
+                        background: 'var(--brand-dark-soft)',
+                        border: '1px solid var(--border-color)',
+                        color: 'white',
+                        padding: '8px',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        width: '100%'
+                      }}
+                    >
+                      {VIRTUAL_JOURNEYS.map(j => {
+                        const prog = virtualProgress[j.id] || 0;
+                        const isDone = prog >= j.totalKm;
+                        return (
+                          <option key={j.id} value={j.id}>
+                            {j.badgeIcon} {userSettings.lang === 'es' ? j.nameEs : j.nameEn} ({j.totalKm} km) {isDone ? '✓' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* Stamp Collection / Unlocked Badges */}
+                  <div style={{ marginTop: '4px' }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>
+                      🎒 {userSettings.lang === 'es' ? 'Sellos de Pasaporte Adquiridos:' : 'Earned Passport Stamps:'}
+                    </span>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      {VIRTUAL_JOURNEYS.map(j => {
+                        const prog = virtualProgress[j.id] || 0;
+                        const isDone = prog >= j.totalKm;
+                        return (
+                          <div
+                            key={j.id}
+                            title={`${userSettings.lang === 'es' ? j.nameEs : j.nameEn} (${isDone ? 'Conquistado' : 'Pendiente'})`}
+                            style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '50%',
+                              background: isDone ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.2)',
+                              border: isDone ? `2px solid ${j.color}` : '2px dashed rgba(255,255,255,0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '1.4rem',
+                              opacity: isDone ? 1 : 0.25,
+                              filter: isDone ? 'none' : 'grayscale(100%)',
+                              transition: 'all 0.3s ease',
+                              cursor: 'help'
+                            }}
+                          >
+                            {j.badgeIcon}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Passport: Multi-City Progression */}
+                <div className="passport-card card-glow" style={{
+                  background: 'var(--brand-light)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  marginTop: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    🛂 {userSettings.lang === 'es' ? 'Pasaporte de Ciudades MetroMile' : 'MetroMile Cities Passport'}
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: '1.3' }}>
+                    {userSettings.lang === 'es'
+                      ? 'Cambia tu ciudad activa en la configuración para empezar a explorar y conquistar nuevas redes de metro y autobús en todo el mundo.'
+                      : 'Change your active city in settings to explore and conquer new subway and bus networks globally.'}
+                  </p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                    {passportCities.map(city => {
+                      const isActive = city.id === activeCity;
+                      return (
+                        <div 
+                          key={city.id} 
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'between',
+                            background: isActive ? 'rgba(37, 99, 235, 0.05)' : 'rgba(255, 255, 255, 0.01)',
+                            border: isActive ? '1px solid rgba(37, 99, 235, 0.25)' : '1px solid rgba(255, 255, 255, 0.03)',
+                            padding: '10px 12px',
+                            borderRadius: '10px',
+                            gap: '12px'
+                          }}
+                        >
+                          <span style={{ fontSize: '1.4rem' }}>{isActive ? '📍' : '✈️'}</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>
+                                {city.name} <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>({city.country})</span>
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                {city.completedCount} / {city.totalCount} {userSettings.lang === 'es' ? 'líneas' : 'lines'}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                              <div style={{ flex: 1, height: '4px', background: 'var(--brand-dark-soft)', borderRadius: '10px', overflow: 'hidden' }}>
+                                <div style={{
+                                  height: '100%',
+                                  width: `${city.completionPercent}%`,
+                                  background: city.completionPercent >= 100 ? '#10b981' : 'var(--brand-orange)',
+                                  borderRadius: '10px'
+                                }}></div>
+                              </div>
+                              <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: city.completionPercent >= 100 ? '#10b981' : '#cbd5e1' }}>
+                                {city.completionPercent.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
