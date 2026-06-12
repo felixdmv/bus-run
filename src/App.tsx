@@ -717,6 +717,31 @@ export default function App() {
     const lang = userSettings.lang || 'es';
     return translations[lang as 'es' | 'en']?.[key] || translations['es']?.[key] || key;
   };
+
+  const [prestigeCount, setPrestigeCount] = useState(() => Number(localStorage.getItem('metromile-prestige') || '0'));
+
+  const handlePrestigeReset = () => {
+    const nextCount = prestigeCount + 1;
+    setPrestigeCount(nextCount);
+    localStorage.setItem('metromile-prestige', String(nextCount));
+    
+    // Clear completion progress for the active city
+    const updated = { ...completed };
+    Object.keys(updated).forEach(key => {
+      if (key.startsWith(`${activeCity}_`)) {
+        delete updated[key];
+      }
+    });
+    setCompleted(updated);
+    localStorage.setItem(STORAGE_PROGRESS_KEY, JSON.stringify(updated));
+    
+    if (supabase && userProfile.loggedIn && userProfile.id !== 'anonymous') {
+      supabase.from('profiles').update({ prestige_count: nextCount }).eq('id', userProfile.id);
+    }
+    
+    addNotification('MetroMile', userSettings.lang === 'es' ? '🏆 ¡Modo Prestigio iniciado! Progreso de ciudad reiniciado y estrella ganada.' : '🏆 Prestige Mode activated! City progress reset and star awarded.', 'success');
+  };
+
   const [nearbyStops, setNearbyStops] = useState<{ stop: Stop; distanceKm: number; lineRefs: string[] }[]>([]);
 
   // Simulation states
@@ -4477,8 +4502,27 @@ ${segments.join('\n')}
                   </div>
                   <div className="profile-main-meta">
                     <div className="profile-name-badge">
-                      <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         {userProfile.name}
+                        {prestigeCount > 0 && (
+                          <span 
+                            style={{ 
+                              color: '#f59e0b', 
+                              fontSize: '0.85rem', 
+                              letterSpacing: '1px', 
+                              background: 'rgba(245, 158, 11, 0.12)', 
+                              padding: '2px 8px', 
+                              borderRadius: '20px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              fontWeight: 'bold',
+                              border: '1px solid rgba(245, 158, 11, 0.25)'
+                            }}
+                            title={`Prestigio Nivel ${prestigeCount}`}
+                          >
+                            ★ {prestigeCount}
+                          </span>
+                        )}
                         <button 
                           onClick={() => { setSettingsActiveTab('profile'); setShowSettingsModal(true); }}
                           style={{
@@ -4533,6 +4577,59 @@ ${segments.join('\n')}
                     <div className="bar-fill" style={{ width: `${burgosCompletionPercentage}%` }}></div>
                   </div>
                 </div>
+
+                {burgosCompletionPercentage >= 100 && (
+                  <div 
+                    className="card-glow" 
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.05)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      borderRadius: '16px',
+                      padding: '16px',
+                      marginTop: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '10px',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <span style={{ fontSize: '2rem' }}>👑</span>
+                    <strong style={{ fontSize: '0.95rem', color: '#ffd700' }}>
+                      {userSettings.lang === 'es' ? '¡Ciudad 100% Conquistada!' : 'City 100% Conquered!'}
+                    </strong>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.4', maxWidth: '380px' }}>
+                      {userSettings.lang === 'es' 
+                        ? 'Has completado todas las rutas disponibles en esta ciudad. Activa el Modo Prestigio para reiniciar tu progreso local, ganar una medalla permanente ★ y volver a competir con un multiplicador de rango.'
+                        : 'You have completed all available routes in this city. Activate Prestige Mode to reset your local progress, earn a permanent ★ badge, and start competing again with a rank multiplier.'}
+                    </p>
+                    <button
+                      onClick={() => {
+                        if (confirm(userSettings.lang === 'es' 
+                          ? '¿Estás seguro de que deseas reiniciar tu progreso de la ciudad activa y avanzar al siguiente Nivel de Prestigio?' 
+                          : 'Are you sure you want to reset your progress for the active city and advance to the next Prestige Level?')) {
+                          handlePrestigeReset();
+                        }
+                      }}
+                      style={{
+                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 18px',
+                        borderRadius: '8px',
+                        fontWeight: 'bold',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)'
+                      }}
+                    >
+                      ★ {userSettings.lang === 'es' ? 'Iniciar Modo Prestigio' : 'Activate Prestige Mode'}
+                    </button>
+                  </div>
+                )}
               </section>
 
               {/* Quick Connection center inside the Profile tab */}
@@ -4752,12 +4849,23 @@ ${segments.join('\n')}
                         if (city === 'burgos') {
                           const line = burgosBusLines.find(l => l.ref === ref);
                           if (!line) return null;
+                          const paceMin = (item.timeSeconds / line.distanceKm) / 60;
+                          const medal = paceMin < 4.5 
+                            ? { icon: '🥇', label: userSettings.lang === 'es' ? 'Oro' : 'Gold' }
+                            : paceMin < 5.5
+                            ? { icon: '🥈', label: userSettings.lang === 'es' ? 'Plata' : 'Silver' }
+                            : { icon: '🥉', label: userSettings.lang === 'es' ? 'Bronce' : 'Bronze' };
                           return (
                             <div key={key} className="history-item">
                               <div className="left-side">
                                 <span className="badge-ref">{line.ref}</span>
                                 <div className="name-box">
-                                  <strong>Línea {line.ref} (Burgos)</strong>
+                                  <strong style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                    Línea {line.ref} (Burgos)
+                                    <span title={`Medalla de ${medal.label} (Ritmo: ${formatDuration(item.timeSeconds / line.distanceKm)}/km)`} style={{ cursor: 'help' }}>
+                                      {medal.icon}
+                                    </span>
+                                  </strong>
                                   <span>Cualquier sentido · Completado el {item.date}</span>
                                 </div>
                               </div>
@@ -4785,19 +4893,35 @@ ${segments.join('\n')}
                             </div>
                           );
                         }
+                        const mockDist = 6.8;
+                        const mockPaceMin = (item.timeSeconds / mockDist) / 60;
+                        const mockMedal = mockPaceMin < 4.5 
+                          ? { icon: '🥇', label: userSettings.lang === 'es' ? 'Oro' : 'Gold' }
+                          : mockPaceMin < 5.5
+                          ? { icon: '🥈', label: userSettings.lang === 'es' ? 'Plata' : 'Silver' }
+                          : { icon: '🥉', label: userSettings.lang === 'es' ? 'Bronce' : 'Bronze' };
                         return (
                           <div key={key} className="history-item">
                             <div className="left-side">
                               <span className="badge-ref">M06</span>
                               <div className="name-box">
-                                <strong>Línea 6 Circular (Metro Madrid)</strong>
+                                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                  Línea 6 Circular (Metro Madrid)
+                                  <span title={`Medalla de ${mockMedal.label} (Ritmo: ${formatDuration(item.timeSeconds / mockDist)}/km)`} style={{ cursor: 'help' }}>
+                                    {mockMedal.icon}
+                                  </span>
+                                </strong>
                                 <span>Madrid · Completado el {item.date}</span>
                               </div>
                             </div>
                             <div className="right-side" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                               <div>
                                 <span className="l">Distancia</span>
-                                <span className="v">23.4 km</span>
+                                <span className="v">{mockDist} km</span>
+                              </div>
+                              <div>
+                                <span className="l">Ritmo</span>
+                                <span className="v">{formatDuration(item.timeSeconds / mockDist)}/km</span>
                               </div>
                               <div>
                                 <span className="l">Precisión</span>
