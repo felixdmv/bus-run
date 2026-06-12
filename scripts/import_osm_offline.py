@@ -146,7 +146,8 @@ def clean_str(s):
     return s.strip()
 
 def process_offline_data():
-    raw_path = "C:/Users/felix/Documents/Proyectos Personales/BusRun/scratch/raw_osm.json"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    raw_path = os.path.abspath(os.path.join(script_dir, "..", "scratch", "raw_osm.json"))
     
     if not os.path.exists(raw_path):
         print(f"Error: No se encontró el archivo de datos crudos en {raw_path}")
@@ -253,7 +254,8 @@ def process_offline_data():
         })
         
     # Write output
-    output_dir = "C:/Users/felix/Documents/Proyectos Personales/BusRun/src/data"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.abspath(os.path.join(script_dir, "..", "src", "data"))
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "burgos_lines.json")
     

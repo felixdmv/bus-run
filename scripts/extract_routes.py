@@ -149,7 +149,7 @@ def query_city_details(city_name):
     # Retrieve center coordinates of city from Nominatim or Overpass
     print(f"Obteniendo coordenadas centrales para '{city_name}'...")
     url = f"https://nominatim.openstreetmap.org/search?q={city_name}&format=json&limit=1"
-    headers = {"User-Agent": "BusRunPipelineAgent/1.0"}
+    headers = {"User-Agent": "MetroMilePipelineAgent/1.0"}
     try:
         res = requests.get(url, headers=headers, timeout=10)
         if res.status_code == 200 and len(res.json()) > 0:
@@ -195,7 +195,7 @@ def extract_city_routes(city_name, transport_type="bus", max_routes=40):
     """
     
     headers = {
-        "User-Agent": "BusRunPipelineAgent/1.0",
+        "User-Agent": "MetroMilePipelineAgent/1.0",
     }
     
     try:
@@ -339,7 +339,8 @@ def extract_city_routes(city_name, transport_type="bus", max_routes=40):
         return
 
     # Write Output Files
-    output_dir = "C:/Users/felix/Documents/Proyectos Personales/BusRun/public/data"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.abspath(os.path.join(script_dir, "..", "public", "data"))
     
     # 1. Backwards Compatible format (single json file)
     compat_path = os.path.join(output_dir, f"{city_id}.json")

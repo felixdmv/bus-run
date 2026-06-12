@@ -131,7 +131,7 @@ def import_burgos_line_1():
     """
     
     headers = {
-        "User-Agent": "BusRunPipelineAgent/1.0 (contact: felix@busrun.example)",
+        "User-Agent": "MetroMilePipelineAgent/1.0 (contact: felix@metromile.example)",
     }
     
     print("Iniciando Ingesta de Datos desde Overpass API...")
@@ -228,7 +228,8 @@ def import_burgos_line_1():
             })
             
         # Write to src/data/burgos_lines.json
-        output_dir = "C:/Users/felix/Documents/Proyectos Personales/BusRun/src/data"
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_dir = os.path.abspath(os.path.join(script_dir, "..", "src", "data"))
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, "burgos_lines.json")
         

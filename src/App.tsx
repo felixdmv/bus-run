@@ -25,6 +25,7 @@ interface LineRoute {
   stopsCount: number;
   coords: [number, number, number][]; // [lat, lon, ele]
   stops: Stop[];
+  color?: string;
 }
 
 interface UserActivity {
@@ -40,7 +41,7 @@ interface UserActivity {
   timeSeconds: number;
   date: string;
   matchPercent: number;
-  type: 'running' | 'walking';
+  type: 'running' | 'walking' | 'cycling';
   likes: number;
   comments: { id: string; userName: string; text: string }[];
   likedByMe?: boolean;
@@ -75,9 +76,9 @@ const parseJwt = (token: string) => {
   }
 };
 
-const STORAGE_PROGRESS_KEY = 'busrun-completed-lines-v5'; // Incremented key to avoid cache clashes
-const STORAGE_FEED_KEY = 'busrun-feed-activities-v5';
-const STORAGE_USER_KEY = 'busrun-user-profile-v5';
+const STORAGE_PROGRESS_KEY = 'metromile-completed-lines-v5'; // Incremented key to avoid cache clashes
+const STORAGE_FEED_KEY = 'metromile-feed-activities-v5';
+const STORAGE_USER_KEY = 'metromile-user-profile-v5';
 
 
 // Leaflet DivIcons
@@ -1552,7 +1553,7 @@ export default function App() {
   const [selectedLineId, setSelectedLineId] = useState<string>('');
   
   // Completed is stored as: Record of "city_lineRef" (e.g. "burgos_L01") -> completion details
-  const [completed, setCompleted] = useState<Record<string, { date: string; timeSeconds: number; type: 'running' | 'walking'; matchPercent: number }>>({});
+  const [completed, setCompleted] = useState<Record<string, { date: string; timeSeconds: number; type: 'running' | 'walking' | 'cycling'; matchPercent: number }>>({});
   
   const [feedActivities, setFeedActivities] = useState<UserActivity[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1716,32 +1717,39 @@ export default function App() {
     if (ticketCheckedDate === today) return;
     
     const rewards = [
-      { type: 'multiplier', value: 2.0, desc: userSettings.lang === 'es' ? 'Duplicador de Tránsito (2.0x XP en todas tus carreras hoy)' : 'Transit Doubler (2.0x XP on all runs today)', icon: '⚡' },
-      { type: 'multiplier', value: 1.5, desc: userSettings.lang === 'es' ? 'Super Booster (1.5x XP en todas tus carreras hoy)' : 'Super Booster (1.5x XP on all runs today)', icon: '🔥' },
-      { type: 'xp', value: 250, desc: userSettings.lang === 'es' ? 'Recompensa Instantánea (+250 XP añadidos de inmediato)' : 'Instant Reward (+250 XP added immediately)', icon: '🎁' },
-      { type: 'xp', value: 150, desc: userSettings.lang === 'es' ? 'Recompensa de Metro (+150 XP añadidos de inmediato)' : 'Metro Reward (+150 XP added immediately)', icon: '🎫' }
+      { type: 'multiplier', value: 2.0, desc: userSettings.lang === 'es' ? 'Duplicador de Tránsito (2.0x XP en todas tus carreras hoy)' : 'Transit Doubler (2.0x XP on all runs today)', icon: '⚡', label: 'DUPLICADOR' },
+      { type: 'multiplier', value: 1.5, desc: userSettings.lang === 'es' ? 'Super Booster (1.5x XP en todas tus carreras hoy)' : 'Super Booster (1.5x XP on all runs today)', icon: '🔥', label: '1.5x XP Boost' },
+      { type: 'xp', value: 250, desc: userSettings.lang === 'es' ? 'Recompensa Instantánea (+250 XP añadidos de inmediato)' : 'Instant Reward (+250 XP added immediately)', icon: '🎁', label: '+250 XP' },
+      { type: 'xp', value: 150, desc: userSettings.lang === 'es' ? 'Recompensa de Metro (+150 XP añadidos de inmediato)' : 'Metro Reward (+150 XP added immediately)', icon: '🎫', label: '+150 XP' }
     ];
     
     const reward = rewards[Math.floor(Math.random() * rewards.length)];
+    setStampingReward(reward);
+    setIsStampingTicket(true);
     
-    setTicketCheckedDate(today);
-    setTicketReward(reward);
-    localStorage.setItem('metromile-ticket-checked-date', today);
-    localStorage.setItem('metromile-ticket-reward', JSON.stringify(reward));
-    
-    if (reward.type === 'xp') {
-      setXp(prev => {
-        const next = prev + reward.value;
-        localStorage.setItem('metromile-xp', String(next));
-        return next;
-      });
-    }
-    
-    addNotification(
-      'MetroMile',
-      t('reward_toast_validated').replace('{desc}', reward.desc),
-      'success'
-    );
+    setTimeout(() => {
+      setTicketCheckedDate(today);
+      setTicketReward(reward);
+      localStorage.setItem('metromile-ticket-checked-date', today);
+      localStorage.setItem('metromile-ticket-reward', JSON.stringify(reward));
+      
+      if (reward.type === 'xp') {
+        setXp(prev => {
+          const next = prev + reward.value;
+          localStorage.setItem('metromile-xp', String(next));
+          return next;
+        });
+      }
+      
+      setIsStampingTicket(false);
+      setStampingReward(null);
+      
+      addNotification(
+        'MetroMile',
+        t('reward_toast_validated').replace('{desc}', reward.desc),
+        'success'
+      );
+    }, 2500);
   };
 
   useEffect(() => {
@@ -1787,10 +1795,10 @@ export default function App() {
 
   // Google Auth Settings & Modal
   const [googleClientId, setGoogleClientId] = useState(() => {
-    const saved = localStorage.getItem('busrun-google-client-id');
+    const saved = localStorage.getItem('metromile-google-client-id');
     const legacy = '1054045580649-4l05aevhfl83k7u048e718ndg27d3h75.apps.googleusercontent.com';
     if (saved === legacy) {
-      localStorage.removeItem('busrun-google-client-id');
+      localStorage.removeItem('metromile-google-client-id');
       return '966706651177-i57a7m33pv9kck76uhe1vdc7io8hlm6v.apps.googleusercontent.com';
     }
     return saved || '966706651177-i57a7m33pv9kck76uhe1vdc7io8hlm6v.apps.googleusercontent.com';
@@ -1826,7 +1834,7 @@ export default function App() {
   const [stravaConfig, setStravaConfig] = useState(() => {
     const envClientId = import.meta.env.VITE_STRAVA_CLIENT_ID || '';
     try {
-      const saved = localStorage.getItem('busrun-strava-config');
+      const saved = localStorage.getItem('metromile-strava-config');
       const parsed = saved ? JSON.parse(saved) : {
         clientId: envClientId,
         clientSecret: '',
@@ -1859,7 +1867,7 @@ export default function App() {
   const [gpxResult, setGpxResult] = useState<{ success: boolean; msg: string; matchPercent?: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadActivityType, setUploadActivityType] = useState<'running' | 'walking'>('running');
+  const [uploadActivityType, setUploadActivityType] = useState<'running' | 'walking' | 'cycling'>('running');
 
   const triggerAvatarChange = () => {
     if (avatarFileInputRef.current) {
@@ -1908,6 +1916,12 @@ export default function App() {
     'diego-cid': false
   });
   const [athleteSearchQuery, setAthleteSearchQuery] = useState('');
+  const [searchSubTab, setSearchSubTab] = useState<'athletes' | 'challenges'>('athletes');
+  const [leaderboardSport, setLeaderboardSport] = useState<'running' | 'cycling'>('running');
+  const [isStampingTicket, setIsStampingTicket] = useState(false);
+  const [stampingReward, setStampingReward] = useState<any>(null);
+  const [isFetchingSurface, setIsFetchingSurface] = useState(false);
+  const [gpxRotationModal, setGpxRotationModal] = useState<{ open: boolean; route: LineRoute | null }>({ open: false, route: null });
 
   // Favorite athletes state
   const [favoriteAthletes, setFavoriteAthletes] = useState<Record<string, boolean>>({
@@ -1956,7 +1970,7 @@ export default function App() {
   // Onboarding Tutorial state
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState(() => {
-    return localStorage.getItem('busrun-onboarding-completed') === 'true';
+    return localStorage.getItem('metromile-onboarding-completed') === 'true';
   });
   
   const [chatRecipient, setChatRecipient] = useState<{ id: string; name: string } | null>(null);
@@ -1966,8 +1980,276 @@ export default function App() {
     if (supabase) {
       return registeredAthletes.filter(ath => ath.id !== userProfile.id);
     }
-    return [];
+    // Mock athletes with statsByCity for local/offline demo mode
+    return [
+      {
+        id: 'mock-ath-carlos',
+        name: 'Carlos Gómez',
+        avatar: '🏃‍♂️',
+        bio: 'Maratoniano y amante de las rutas de Gamonal.',
+        rankName: 'Explorador',
+        pct: 45,
+        lines: 3,
+        km: 18.5,
+        completedRefs: ['L01', 'L03', 'L06'],
+        statsByCity: {
+          burgos: { km: 18.5, linesCount: 3 }
+        }
+      },
+      {
+        id: 'mock-ath-sofia',
+        name: 'Sofía Martínez',
+        avatar: '⚡',
+        bio: 'Correr es mi vida. Buscando completar todas las líneas.',
+        rankName: 'Transeúnte',
+        pct: 15,
+        lines: 1,
+        km: 5.6,
+        completedRefs: ['L06'],
+        statsByCity: {
+          burgos: { km: 5.6, linesCount: 1 }
+        }
+      },
+      {
+        id: 'mock-ath-lucia',
+        name: 'Lucía Sanz',
+        avatar: '🏃‍♀️',
+        bio: 'En metro se va rápido, corriendo se va mejor.',
+        rankName: 'Leyenda del Tránsito',
+        pct: 100,
+        lines: 12,
+        km: 84.2,
+        completedRefs: ['L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10', 'L11', 'L12'],
+        statsByCity: {
+          burgos: { km: 84.2, linesCount: 12 }
+        }
+      }
+    ];
   }, [registeredAthletes, userProfile.id]);
+
+  const getTutorialSteps = () => {
+    const lang = userSettings.lang || 'es';
+    const steps = [
+      {
+        id: 1,
+        title: lang === 'es' ? '¡Bienvenido/a a MetroMile!' : lang === 'fr' ? 'Bienvenue sur MetroMile !' : lang === 'de' ? 'Willkommen bei MetroMile!' : lang === 'it' ? 'Benvenuto su MetroMile!' : lang === 'pl' ? 'Witaj w MetroMile!' : lang === 'cs' ? 'Vítejte v MetroMile!' : 'Welcome to MetroMile!',
+        emoji: '⚡',
+        tab: 'feed' as const,
+        text: lang === 'es' 
+          ? 'MetroMile es la red social deportiva de corredores urbanos. Tu misión es completar las líneas de transporte público corriendo o caminando por su trazado.'
+          : 'MetroMile is the sports social network for urban runners. Complete transit lines by running or walking along their actual stop-to-stop routes.'
+      },
+      {
+        id: 2,
+        title: lang === 'es' ? 'Muro de Actividades' : lang === 'fr' ? 'Fil d\'activités' : lang === 'de' ? 'Aktivitäts-Feed' : lang === 'it' ? 'Bacheca Attività' : lang === 'pl' ? 'Tablica aktywności' : lang === 'cs' ? 'Zeď aktivit' : 'Activity Feed',
+        emoji: '📱',
+        tab: 'feed' as const,
+        text: lang === 'es'
+          ? 'En el Muro puedes ver actividades de la comunidad, chatear con el IA Coach, o usar el GPS en vivo y simulador para registrar recorridos.'
+          : 'On the Activity Feed you can see community posts, chat with the AI Coach, use the Live GPS or simulate a run.'
+      },
+      {
+        id: 3,
+        title: lang === 'es' ? 'Mapa y Descargas GPX' : lang === 'fr' ? 'Carte & Téléchargements GPX' : lang === 'de' ? 'Karte & GPX-Downloads' : lang === 'it' ? 'Mappa e Download GPX' : lang === 'pl' ? 'Mapa i pobieranie GPX' : lang === 'cs' ? 'Mapa a stahování GPX' : 'Map & GPX Downloads',
+        emoji: '🗺️',
+        tab: 'map' as const,
+        text: lang === 'es'
+          ? 'Explora las líneas de metro y bus en el mapa, consulta las paradas y descarga el track GPX para seguirlo en la superficie con tu reloj o móvil.'
+          : 'Explore metro and bus routes on the map, view the list of stops, and download GPX tracks to follow on the surface with your sports watch.'
+      },
+      {
+        id: 4,
+        title: lang === 'es' ? 'Retos Virtuales' : lang === 'fr' ? 'Défis Virtuels' : lang === 'de' ? 'Virtuelle Challenges' : lang === 'it' ? 'Sfide Virtuali' : lang === 'pl' ? 'Wyzwania wirtualne' : lang === 'cs' ? 'Virtuální výzvy' : 'Virtual Challenges',
+        emoji: '🗺️',
+        tab: 'search' as const,
+        text: lang === 'es'
+          ? 'Participa en Retos Virtuales viajando a líneas icónicas de otras ciudades (como Tokio, París o Nueva York) y acumula kilómetros en tu pasaporte.'
+          : 'Take on Virtual Challenges by running iconic routes in other cities (such as Tokyo, Paris, or New York) to collect passport stamps.'
+      },
+      {
+        id: 5,
+        title: lang === 'es' ? 'Tu Perfil y Estadísticas' : lang === 'fr' ? 'Profil et Statistiques' : lang === 'de' ? 'Profil und Statistiken' : lang === 'it' ? 'Profilo e Statistiche' : lang === 'pl' ? 'Profil i Statystyki' : lang === 'cs' ? 'Profil a Statistiky' : 'Your Profile & Stats',
+        emoji: '🏆',
+        tab: 'profile' as const,
+        text: lang === 'es'
+          ? (stravaConfig.connected 
+              ? 'Sube de nivel, consulta tu pasaporte y estadísticas. ¡Tu cuenta de Strava ya está vinculada e importará carreras automáticamente!'
+              : 'Sube de nivel, consulta tu pasaporte y estadísticas. ¡Vincula tu cuenta de Strava aquí mismo para importar tus carreras automáticamente!')
+          : (stravaConfig.connected
+              ? 'Level up, view your passport stamps and stats. Your Strava account is linked and will automatically sync and validate runs!'
+              : 'Level up, view your passport stamps and stats. Link your Strava account here to import and validate your runs automatically!')
+      }
+    ];
+    return steps;
+  };
+
+  const getStopMatchingTolerance = () => {
+    const cityObj = citiesList.find(c => c.id === activeCity);
+    const isMetro = cityObj?.transports.includes('metro');
+    // Flexible tolerance for metro stations: 250m to account for distantly-spaced station entrances (bocas de metro).
+    // Standard tolerance for surface buses: 120m.
+    return isMetro ? 0.25 : 0.12;
+  };
+
+  // Synchronize tutorial steps with app navigation tabs (interactive tutorial)
+  useEffect(() => {
+    if (tutorialStep !== null) {
+      const steps = getTutorialSteps();
+      const currentStep = steps[tutorialStep - 1];
+      if (currentStep) {
+        setActiveTab(currentStep.tab);
+        if (currentStep.tab === 'search') {
+          setSearchSubTab('challenges');
+        }
+      }
+    }
+  }, [tutorialStep]);
+
+
+
+  // Compute stats by city for the current user
+  const userStatsByCity = useMemo(() => {
+    const stats: Record<string, { km: number; linesCount: number }> = {};
+    Object.keys(completed).forEach(key => {
+      const parts = key.split('_');
+      // Only parse generic completed keys (length === 2, e.g. burgos_L01) to avoid double counting with sport-specific suffixes.
+      if (parts.length !== 2) return;
+      
+      const [cityId, lineRef] = parts;
+      if (!cityId || !lineRef) return;
+      
+      let dist = 6.8;
+      if (cityId === 'burgos') {
+        const line = burgosBusLines.find(l => l.ref === lineRef);
+        if (line) dist = line.distanceKm;
+      }
+      
+      if (!stats[cityId]) {
+        stats[cityId] = { km: 0, linesCount: 0 };
+      }
+      stats[cityId].km += dist;
+      stats[cityId].linesCount += 1;
+    });
+    return stats;
+  }, [completed, burgosBusLines]);
+
+  // Generate dynamic leaderboard list for the selected line
+  const getLineLeaderboard = (lineId: string, sportType: 'running' | 'cycling') => {
+    const activities = feedActivities.filter(act => {
+      if (act.lineId !== lineId) return false;
+      if (sportType === 'running') {
+        return act.type === 'running' || act.type === 'walking';
+      } else {
+        return act.type === 'cycling';
+      }
+    });
+
+    const line = selectedLine;
+    if (line) {
+      const key = `${activeCity}_${line.ref}`;
+      const userComp = completed[key];
+      if (userComp) {
+        const isMatch = sportType === 'running' ? (userComp.type === 'running' || userComp.type === 'walking') : (userComp.type === 'cycling');
+        if (isMatch && !activities.some(act => act.userName === userProfile.name)) {
+          activities.push({
+            id: 'user-completed',
+            userName: userProfile.name,
+            userAvatar: userProfile.avatar,
+            lineId: line.id,
+            lineRef: line.ref,
+            lineName: line.name,
+            distanceKm: line.distanceKm,
+            elevationGain: 0,
+            timeSeconds: userComp.timeSeconds,
+            date: userComp.date,
+            matchPercent: userComp.matchPercent,
+            type: userComp.type as any,
+            likes: 0,
+            comments: [],
+            cityId: activeCity
+          });
+        }
+      }
+    }
+
+    const bestTimes: Record<string, typeof activities[0]> = {};
+    activities.forEach(act => {
+      const existing = bestTimes[act.userName];
+      if (!existing || act.timeSeconds < existing.timeSeconds) {
+        bestTimes[act.userName] = act;
+      }
+    });
+
+    if (line) {
+      const mockRunners = [
+        { name: 'Lucía Sanz', avatar: '🏃‍♀️', runMultiplier: 0.9, bikeMultiplier: 0.45 },
+        { name: 'Carlos Gómez', avatar: '🏃‍♂️', runMultiplier: 1.05, bikeMultiplier: 0.52 },
+        { name: 'Sofía Martínez', avatar: '⚡', runMultiplier: 1.2, bikeMultiplier: 0.6 }
+      ];
+
+      mockRunners.forEach(runner => {
+        if (!bestTimes[runner.name]) {
+          const basePace = sportType === 'running' ? 300 : 120;
+          const duration = Math.round(line.distanceKm * basePace * (sportType === 'running' ? runner.runMultiplier : runner.bikeMultiplier));
+          bestTimes[runner.name] = {
+            id: `mock-leaderboard-${runner.name}-${sportType}`,
+            userName: runner.name,
+            userAvatar: runner.avatar,
+            lineId: line.id,
+            lineRef: line.ref,
+            lineName: line.name,
+            distanceKm: line.distanceKm,
+            elevationGain: 0,
+            timeSeconds: duration,
+            date: 'Hace unos días',
+            matchPercent: 95,
+            type: sportType === 'running' ? 'running' : 'cycling',
+            likes: 0,
+            comments: [],
+            cityId: activeCity
+          };
+        }
+      });
+    }
+
+    return Object.values(bestTimes).sort((a, b) => a.timeSeconds - b.timeSeconds);
+  };
+
+  const renderCoachText = (text: string) => {
+    if (text.includes("Activa tu GPS")) {
+      const parts = text.split("Activa tu GPS");
+      return (
+        <span>
+          {parts[0]}
+          <button 
+            onClick={(e) => { e.preventDefault(); detectNearbyLines(); }}
+            style={{
+              background: 'rgba(252, 82, 0, 0.15)',
+              border: '1px solid var(--brand-orange)',
+              borderRadius: '6px',
+              padding: '2px 8px',
+              color: 'var(--brand-orange)',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              margin: '0 4px',
+              verticalAlign: 'middle',
+              transition: 'transform 0.1s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            📡 Activar GPS
+          </button>
+          {parts[1]}
+        </span>
+      );
+    }
+    return text;
+  };
 
   // Selected Athlete for profile popup
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
@@ -2014,12 +2296,12 @@ export default function App() {
 
 
 
-    const favs = localStorage.getItem('busrun-favorite-athletes-v5');
+    const favs = localStorage.getItem('metromile-favorite-athletes-v5');
     if (favs) {
       try { setFavoriteAthletes(JSON.parse(favs)); } catch(e) {}
     }
 
-    const settings = localStorage.getItem('busrun-user-settings-v5');
+    const settings = localStorage.getItem('metromile-user-settings-v5');
     if (settings) {
       try { 
         const parsed = JSON.parse(settings);
@@ -2027,12 +2309,12 @@ export default function App() {
       } catch(e) {}
     }
 
-    const notifs = localStorage.getItem('busrun-user-notifications-v5');
+    const notifs = localStorage.getItem('metromile-user-notifications-v5');
     if (notifs) {
       try { setUnreadNotifications(JSON.parse(notifs)); } catch(e) {}
     }
 
-    const tutorialSeen = localStorage.getItem('busrun-tutorial-seen');
+    const tutorialSeen = localStorage.getItem('metromile-tutorial-seen');
     if (!tutorialSeen) {
       setTutorialStep(1);
     }
@@ -2108,7 +2390,7 @@ export default function App() {
       setDeferredPrompt(e);
       
       const runningStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-      const dismissed = localStorage.getItem('busrun-pwa-dismissed') === 'true';
+      const dismissed = localStorage.getItem('metromile-pwa-dismissed') === 'true';
       if (!runningStandalone && !dismissed) {
         setShowPwaBanner(true);
       }
@@ -2124,7 +2406,7 @@ export default function App() {
     const runningStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
     setIsStandalone(!!runningStandalone);
 
-    const dismissed = localStorage.getItem('busrun-pwa-dismissed') === 'true';
+    const dismissed = localStorage.getItem('metromile-pwa-dismissed') === 'true';
     if (isMobile && !runningStandalone && !dismissed) {
       setShowPwaBanner(true);
     }
@@ -2370,7 +2652,7 @@ export default function App() {
             expiresAt: 0
           };
           try {
-            const saved = localStorage.getItem('busrun-strava-config');
+            const saved = localStorage.getItem('metromile-strava-config');
             if (saved) currentConfig = JSON.parse(saved);
           } catch(e){}
 
@@ -2459,7 +2741,7 @@ export default function App() {
 
   const saveStravaConfig = (newConfig: typeof stravaConfig) => {
     setStravaConfig(newConfig);
-    localStorage.setItem('busrun-strava-config', JSON.stringify(newConfig));
+    localStorage.setItem('metromile-strava-config', JSON.stringify(newConfig));
   };
 
   const saveFeed = (newFeed: UserActivity[]) => {
@@ -2491,17 +2773,17 @@ export default function App() {
 
   const saveFavorites = (newFavs: Record<string, boolean>) => {
     setFavoriteAthletes(newFavs);
-    localStorage.setItem('busrun-favorite-athletes-v5', JSON.stringify(newFavs));
+    localStorage.setItem('metromile-favorite-athletes-v5', JSON.stringify(newFavs));
   };
 
   const saveSettings = (newSettings: typeof userSettings) => {
     setUserSettings(newSettings);
-    localStorage.setItem('busrun-user-settings-v5', JSON.stringify(newSettings));
+    localStorage.setItem('metromile-user-settings-v5', JSON.stringify(newSettings));
   };
 
   const saveNotifications = (newNotifs: typeof unreadNotifications) => {
     setUnreadNotifications(newNotifs);
-    localStorage.setItem('busrun-user-notifications-v5', JSON.stringify(newNotifs));
+    localStorage.setItem('metromile-user-notifications-v5', JSON.stringify(newNotifs));
   };
 
   const addNotification = (brand: string, msg: string, type: 'info' | 'success' = 'info') => {
@@ -2597,7 +2879,7 @@ export default function App() {
       let visitedStopsCount = 0;
       for (const stop of line.stops) {
         const isClose = recordingCoords.some(([glat, glon]) => {
-          return haversineDistance(stop.lat, stop.lon, glat, glon) <= 0.12; // 120m
+          return haversineDistance(stop.lat, stop.lon, glat, glon) <= getStopMatchingTolerance();
         });
         if (isClose) {
           visitedStopsCount++;
@@ -2618,9 +2900,16 @@ export default function App() {
 
     if (passed && bestMatchLine) {
       const detectedLine = bestMatchLine as LineRoute;
+      const sportKey = 'running';
       const newCompleted = {
         ...completed,
         [`${activeCity}_${detectedLine.ref}`]: {
+          date: new Date().toLocaleDateString(),
+          timeSeconds: finalSeconds,
+          type: recordingType,
+          matchPercent: bestMatchPercent
+        },
+        [`${activeCity}_${detectedLine.ref}_${sportKey}`]: {
           date: new Date().toLocaleDateString(),
           timeSeconds: finalSeconds,
           type: recordingType,
@@ -2752,6 +3041,12 @@ export default function App() {
               timeSeconds: finalSeconds,
               type: 'running' as const,
               matchPercent: 100
+            },
+            [`${activeCity}_${targetLine.ref}_running`]: {
+              date: new Date().toLocaleDateString(),
+              timeSeconds: finalSeconds,
+              type: 'running' as const,
+              matchPercent: 100
             }
           };
           saveProgress(newCompleted);
@@ -2838,9 +3133,9 @@ export default function App() {
       isTestingMode: false
     };
     saveProfile(newProfile);
-    localStorage.removeItem('busrun-onboarding-completed');
-    localStorage.removeItem('busrun-tutorial-seen');
-    localStorage.removeItem('busrun-strava-skipped');
+    localStorage.removeItem('metromile-onboarding-completed');
+    localStorage.removeItem('metromile-tutorial-seen');
+    localStorage.removeItem('metromile-strava-skipped');
     saveStravaConfig({
       clientId: '',
       clientSecret: '',
@@ -2962,6 +3257,41 @@ export default function App() {
     }
     return agg as unknown as LineRoute;
   }, [selectedLineId, aggregatedLines, selectedDirection, burgosBusLines]);
+
+  const [surfaceCoords, setSurfaceCoords] = useState<[number, number, number][] | null>(null);
+
+  // Surface routing for subterranean routes using OSRM
+  useEffect(() => {
+    setSurfaceCoords(null); // Reset when line changes
+    
+    if (!selectedLine || selectedLine.stops.length < 2) return;
+    
+    const cityObj = citiesList.find(c => c.id === activeCity);
+    const isMetro = cityObj?.transports.includes('metro');
+    
+    if (isMetro) {
+      const loadSurface = async () => {
+        setIsFetchingSurface(true);
+        try {
+          const coordsString = selectedLine.stops.map(s => `${s.lon},${s.lat}`).join(';');
+          const url = `https://router.project-osrm.org/route/v1/foot/${coordsString}?overview=full&geometries=geojson`;
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.routes && data.routes[0] && data.routes[0].geometry) {
+              const geojsonCoords = data.routes[0].geometry.coordinates; // array of [lon, lat]
+              setSurfaceCoords(geojsonCoords.map((c: [number, number]) => [c[1], c[0], 0]));
+            }
+          }
+        } catch (e) {
+          console.error("Error aligning route to surface via OSRM:", e);
+        } finally {
+          setIsFetchingSurface(false);
+        }
+      };
+      loadSurface();
+    }
+  }, [selectedLine, activeCity, citiesList]);
 
   const mapCenter = useMemo<[number, number]>(() => {
     if (activeMapActivity && activeMapActivity.coords.length > 0) {
@@ -3749,6 +4079,8 @@ export default function App() {
   const handleDeleteCompleted = (cityLineRefKey: string) => {
     const copy = { ...completed };
     delete copy[cityLineRefKey];
+    delete copy[`${cityLineRefKey}_running`];
+    delete copy[`${cityLineRefKey}_cycling`];
     saveProgress(copy);
 
     const ref = cityLineRefKey.split('_')[1];
@@ -3759,12 +4091,101 @@ export default function App() {
     addNotification('MetroMile', `Se ha eliminado la Línea ${ref} de tus actividades.`, 'info');
   };
 
-  const triggerGpxDownload = (route: LineRoute) => {
-    const gpxSegments = route.coords
-      .map(([lat, lon, ele]) => `      <trkpt lat="${lat}" lon="${lon}"><ele>${ele}</ele></trkpt>`)
+  const triggerGpxDownload = async (route: LineRoute) => {
+    const firstStop = route.stops[0];
+    const lastStop = route.stops[route.stops.length - 1];
+    const isCircular = firstStop && lastStop && (
+      firstStop.name === lastStop.name ||
+      haversineDistance(firstStop.lat, firstStop.lon, lastStop.lat, lastStop.lon) <= 0.15
+    );
+
+    // Determine if we need to fetch pedestrian surface coords for subterranean lines
+    const cityObj = citiesList.find(c => c.id === activeCity);
+    const isMetro = cityObj?.transports.includes('metro');
+    
+    let coordsToUse = route.coords;
+    if (isMetro && route.stops.length >= 2) {
+      if (selectedLine && selectedLine.id === route.id && surfaceCoords && surfaceCoords.length > 0) {
+        coordsToUse = surfaceCoords;
+      } else {
+        addNotification('GPX', 'Generando trazado de superficie para peatones...', 'info');
+        try {
+          const coordsString = route.stops.map(s => `${s.lon},${s.lat}`).join(';');
+          const url = `https://router.project-osrm.org/route/v1/foot/${coordsString}?overview=full&geometries=geojson`;
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.routes && data.routes[0] && data.routes[0].geometry) {
+              const geojsonCoords = data.routes[0].geometry.coordinates; // array of [lon, lat]
+              coordsToUse = geojsonCoords.map((c: [number, number]) => [c[1], c[0], 0]);
+            }
+          }
+        } catch (e) {
+          console.error("Error fetching surface coords for GPX download:", e);
+        }
+      }
+    }
+
+    if (isCircular) {
+      const tempRouteWithCoords = { ...route, coords: coordsToUse };
+      setGpxRotationModal({ open: true, route: tempRouteWithCoords });
+    } else {
+      executeGpxDownload(route, coordsToUse);
+    }
+  };
+
+  const handleRotateAndDownload = (route: LineRoute, startStopIndex: number) => {
+    const activeCoords = route.coords;
+    const selectedStop = route.stops[startStopIndex];
+    
+    let closestIdx = 0;
+    let minDist = Infinity;
+    activeCoords.forEach((coord, idx) => {
+      const d = haversineDistance(coord[0], coord[1], selectedStop.lat, selectedStop.lon);
+      if (d < minDist) {
+        minDist = d;
+        closestIdx = idx;
+      }
+    });
+
+    const hasLastDuplicate = activeCoords.length > 2 && 
+      activeCoords[0][0] === activeCoords[activeCoords.length - 1][0] &&
+      activeCoords[0][1] === activeCoords[activeCoords.length - 1][1];
+    
+    const workingCoords = hasLastDuplicate ? activeCoords.slice(0, -1) : activeCoords;
+    
+    let rotated = [
+      ...workingCoords.slice(closestIdx),
+      ...workingCoords.slice(0, closestIdx)
+    ];
+    
+    if (hasLastDuplicate) {
+      rotated.push([rotated[0][0], rotated[0][1], rotated[0][2]]);
+    }
+
+    const rotatedStops = [
+      ...route.stops.slice(startStopIndex),
+      ...route.stops.slice(0, startStopIndex)
+    ];
+    if (route.stops[0].name === route.stops[route.stops.length - 1].name) {
+      rotatedStops.push({ ...rotatedStops[0], id: `${rotatedStops[0].id}-end` });
+    }
+
+    const tempRoute = {
+      ...route,
+      coords: rotated,
+      stops: rotatedStops
+    };
+
+    executeGpxDownload(tempRoute, rotated);
+    setGpxRotationModal({ open: false, route: null });
+  };
+
+  const executeGpxDownload = (route: LineRoute, coordsToUse: [number, number, number][]) => {
+    const gpxSegments = coordsToUse
+      .map(([lat, lon, ele]) => `      <trkpt lat="${lat}" lon="${lon}"><ele>${ele || 0}</ele></trkpt>`)
       .join('\n');
 
-    // Clean name from special characters and escape HTML/XML characters
     const cleanGpxName = route.name
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -3772,7 +4193,7 @@ export default function App() {
       .replace(/[→←]/g, '-');
 
     const gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="BusRun">
+<gpx version="1.1" creator="MetroMile">
   <trk>
     <name>${cleanGpxName}</name>
     <trkseg>
@@ -3786,7 +4207,6 @@ ${gpxSegments}
     const link = document.createElement('a');
     link.href = url;
     
-    // Clean filename to be fully compatible with watches/phone systems (FAT32 compatible)
     const cleanFilename = route.name
       .replace(/[→←]/g, '-')
       .replace(/[^a-zA-Z0-9_\-\s]/g, '')
@@ -3904,16 +4324,19 @@ ${gpxSegments}
       }
 
       const activities = await response.json();
-      const runs = activities.filter((act: any) => act.type === 'Run' || act.sport_type === 'Run');
+      const runs = activities.filter((act: any) => 
+        ['Run', 'Walk', 'Hike', 'Ride', 'VirtualRide', 'EBikeRide', 'Cycling'].includes(act.type) ||
+        ['Run', 'Walk', 'Hike', 'Ride', 'VirtualRide', 'EBikeRide', 'Cycling'].includes(act.sport_type)
+      );
 
       if (runs.length === 0) {
-        addNotification('Strava', 'Sincronizado. No tienes carreras recientes registradas en tu cuenta de Strava.', 'info');
+        addNotification('Strava', 'Sincronizado. No tienes actividades recientes (correr, caminar o ciclismo) en tu Strava.', 'info');
         return;
       }
 
       let importedIds: string[] = [];
       try {
-        const saved = localStorage.getItem('busrun-imported-strava-ids');
+        const saved = localStorage.getItem('metromile-imported-strava-ids');
         if (saved) importedIds = JSON.parse(saved);
       } catch(e){}
 
@@ -3939,6 +4362,14 @@ ${gpxSegments}
           }
         }
 
+        const rawType = (run.type || run.sport_type || 'Run').toLowerCase();
+        let actType: 'running' | 'walking' | 'cycling' = 'running';
+        if (rawType.includes('ride') || rawType.includes('cycling') || rawType.includes('bike')) {
+          actType = 'cycling';
+        } else if (rawType.includes('walk') || rawType.includes('hike')) {
+          actType = 'walking';
+        }
+
         let bestMatchLine: any = null;
         let bestMatchScore = 0;
 
@@ -3947,7 +4378,7 @@ ${gpxSegments}
             let visitedStopsCount = 0;
             for (const stop of line.stops) {
               const isClose = runCoords.some(([glat, glon]) => {
-                return haversineDistance(stop.lat, stop.lon, glat, glon) <= 0.12;
+                return haversineDistance(stop.lat, stop.lon, glat, glon) <= getStopMatchingTolerance();
               });
               if (isClose) {
                 visitedStopsCount++;
@@ -3967,10 +4398,17 @@ ${gpxSegments}
         const elevation = run.total_elevation_gain || 0;
 
         if (bestMatchScore >= 70 && bestMatchLine) {
+          const sportKey = actType === 'cycling' ? 'cycling' : 'running';
           updatedCompleted[`${activeCity}_${bestMatchLine.ref}`] = {
             date: new Date(run.start_date || Date.now()).toLocaleDateString(),
             timeSeconds: duration,
-            type: 'running' as const,
+            type: actType,
+            matchPercent: bestMatchScore
+          };
+          updatedCompleted[`${activeCity}_${bestMatchLine.ref}_${sportKey}`] = {
+            date: new Date(run.start_date || Date.now()).toLocaleDateString(),
+            timeSeconds: duration,
+            type: actType,
             matchPercent: bestMatchScore
           };
 
@@ -3986,27 +4424,27 @@ ${gpxSegments}
             timeSeconds: duration,
             date: 'Sincronizado vía Strava',
             matchPercent: bestMatchScore,
-            type: 'running',
+            type: actType as any,
             likes: 0,
             comments: [],
             cityId: activeCity,
             coords: runCoords
           });
         } else {
-          // Free Run
+          // Free Run/Ride
           newActs.push({
             id: `strava-${runId}`,
             userName: userProfile.name,
             userAvatar: userProfile.avatar,
             lineId: 'free-run',
             lineRef: 'FREE',
-            lineName: run.name || 'Carrera Libre Strava',
+            lineName: run.name || (actType === 'cycling' ? 'Ciclismo Libre Strava' : 'Carrera Libre Strava'),
             distanceKm: distanceKm,
             elevationGain: elevation,
             timeSeconds: duration,
             date: 'Sincronizado vía Strava',
             matchPercent: 0,
-            type: 'running',
+            type: actType as any,
             likes: 0,
             comments: [],
             cityId: activeCity,
@@ -4016,7 +4454,7 @@ ${gpxSegments}
       }
 
       if (newImportsCount > 0) {
-        localStorage.setItem('busrun-imported-strava-ids', JSON.stringify(importedIds));
+        localStorage.setItem('metromile-imported-strava-ids', JSON.stringify(importedIds));
         saveProgress(updatedCompleted);
         saveFeed([...newActs, ...feedActivities]);
         newActs.forEach(act => saveNewActivityToDatabase(act));
@@ -4076,7 +4514,7 @@ ${gpxSegments}
       let visitedStopsCount = 0;
       for (const stop of line.stops) {
         const isClose = gpxCoords.some(([glat, glon]) => {
-          return haversineDistance(stop.lat, stop.lon, glat, glon) <= 0.12;
+          return haversineDistance(stop.lat, stop.lon, glat, glon) <= getStopMatchingTolerance();
         });
         if (isClose) {
           visitedStopsCount++;
@@ -4098,9 +4536,16 @@ ${gpxSegments}
 
     if (passed && bestMatchLine) {
       const detectedLine = bestMatchLine as LineRoute;
+      const sportKey = uploadActivityType === 'cycling' ? 'cycling' : 'running';
       const newCompleted = {
         ...completed,
         [`${activeCity}_${detectedLine.ref}`]: {
+          date: new Date().toLocaleDateString(),
+          timeSeconds: timeSeconds,
+          type: uploadActivityType,
+          matchPercent: bestMatchPercent
+        },
+        [`${activeCity}_${detectedLine.ref}_${sportKey}`]: {
           date: new Date().toLocaleDateString(),
           timeSeconds: timeSeconds,
           type: uploadActivityType,
@@ -4192,7 +4637,7 @@ ${gpxSegments}
     segments.push(`      <trkpt lat="${lastCoord[0].toFixed(6)}" lon="${lastCoord[1].toFixed(6)}"><ele>${lastCoord[2]}</ele></trkpt>`);
 
     const gpxString = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="BusRun Simulated Tracker">
+<gpx version="1.1" creator="MetroMile Simulated Tracker">
   <trk>
     <name>Simulated Run: ${targetLine.name}</name>
     <trkseg>
@@ -4262,7 +4707,7 @@ ${segments.join('\n')}
                 <div id="google-signin-btn-real" style={{ width: '100%', display: 'flex', justifyContent: 'center' }}></div>
               </div>
             </div>
-          ) : !stravaConfig.connected && localStorage.getItem('busrun-strava-skipped') !== 'true' ? (
+          ) : !stravaConfig.connected && localStorage.getItem('metromile-strava-skipped') !== 'true' ? (
             /* STEP 2: LINK STRAVA */
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px' }}>Paso 2: Conectar Strava 🧡</h2>
@@ -4291,7 +4736,7 @@ ${segments.join('\n')}
 
                 <button
                   onClick={() => {
-                    localStorage.setItem('busrun-strava-skipped', 'true');
+                    localStorage.setItem('metromile-strava-skipped', 'true');
                     // Force refresh by setting state
                     setStravaConfig({ ...stravaConfig });
                   }}
@@ -4330,63 +4775,28 @@ ${segments.join('\n')}
             /* STEP 3: TUTORIAL */
             <div>
               <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--brand-orange)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Paso 3: Tutorial de Bienvenida ({tutorialStep || 1}/5)
+                Paso 3: Tutorial de Bienvenida ({tutorialStep || 1}/{getTutorialSteps().length})
               </span>
 
-              {(!tutorialStep || tutorialStep === 1) && (
-                <div>
-                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>⚡</div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>¡Bienvenido/a a MetroMile!</h3>
-                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
-                    MetroMile es la red social deportiva de corredores urbanos. Tu misión es <strong>completar las líneas de transporte urbano</strong> corriendo o caminando por su trazado de paradas.
-                  </p>
-                </div>
-              )}
-
-              {tutorialStep === 2 && (
-                <div>
-                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>🏆</div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>Progresión y Rango Global</h3>
-                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
-                    Cada línea completada suma porcentaje a tu progresión. Pasa de ser un simple <strong>Transeúnte (0%)</strong> hasta el legendario <strong>Leyenda del Tránsito (100%)</strong>.
-                  </p>
-                </div>
-              )}
-
-              {tutorialStep === 3 && (
-                <div>
-                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>🧡</div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>Sincronizar con Strava</h3>
-                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
-                    Sincroniza tus actividades desde tu perfil o panel de control. Cualquier carrera que grabes con tu reloj deportivo o móvil se validará automáticamente contra la base de datos de paradas de autobús.
-                  </p>
-                </div>
-              )}
-
-              {tutorialStep === 4 && (
-                <div>
-                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>📡</div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>GPS en Vivo y Simulador</h3>
-                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
-                    ¿No tienes reloj? ¡Graba tu actividad en tiempo real con el GPS del móvil en el feed, o usa el <strong>simulador en vivo</strong> para probar cómo funciona desde casa!
-                  </p>
-                </div>
-              )}
-
-              {tutorialStep === 5 && (
-                <div>
-                  <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>🗺️</div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>Mapa e Hitos Unificados</h3>
-                  <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
-                    En la pestaña Mapa puedes seleccionar cualquier línea, cambiar de sentido y ver la checklist de paradas completadas en tiempo real. ¡Disfruta de la experiencia urbana!
-                  </p>
-                </div>
-              )}
+              {(() => {
+                const steps = getTutorialSteps();
+                const currentStep = steps[Math.min(steps.length - 1, (tutorialStep || 1) - 1)];
+                if (!currentStep) return null;
+                return (
+                  <div>
+                    <div style={{ fontSize: '3.5rem', margin: '20px 0' }}>{currentStep.emoji}</div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>{currentStep.title}</h3>
+                    <p style={{ margin: '12px 0 24px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.6' }}>
+                      {currentStep.text}
+                    </p>
+                  </div>
+                );
+              })()}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '20px' }}>
                 {(tutorialStep || 1) > 1 ? (
                   <button 
-                    onClick={() => setTutorialStep(s => s ? s - 1 : 1)}
+                    onClick={() => setTutorialStep(s => s ? Math.max(1, s - 1) : 1)}
                     style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #475569', background: 'transparent', color: '#cbd5e1', fontWeight: 'bold', cursor: 'pointer' }}
                   >
                     Atrás
@@ -4394,8 +4804,8 @@ ${segments.join('\n')}
                 ) : (
                   <button 
                     onClick={() => {
-                      localStorage.setItem('busrun-tutorial-seen', 'true');
-                      localStorage.setItem('busrun-onboarding-completed', 'true');
+                      localStorage.setItem('metromile-tutorial-seen', 'true');
+                      localStorage.setItem('metromile-onboarding-completed', 'true');
                       setOnboardingCompleted(true);
                       addNotification('Social', '¡Registro completo! Todo listo para empezar.', 'success');
                     }}
@@ -4405,9 +4815,9 @@ ${segments.join('\n')}
                   </button>
                 )}
 
-                {(tutorialStep || 1) < 5 ? (
+                {(tutorialStep || 1) < getTutorialSteps().length ? (
                   <button 
-                    onClick={() => setTutorialStep(s => s ? s + 1 : 5)}
+                    onClick={() => setTutorialStep(s => s ? Math.min(getTutorialSteps().length, s + 1) : 2)}
                     style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
                   >
                     Siguiente
@@ -4415,8 +4825,8 @@ ${segments.join('\n')}
                 ) : (
                   <button 
                     onClick={() => {
-                      localStorage.setItem('busrun-tutorial-seen', 'true');
-                      localStorage.setItem('busrun-onboarding-completed', 'true');
+                      localStorage.setItem('metromile-tutorial-seen', 'true');
+                      localStorage.setItem('metromile-onboarding-completed', 'true');
                       setOnboardingCompleted(true);
                       addNotification('Social', '¡Registro y tutorial completado! Bienvenido a MetroMile.', 'success');
                     }}
@@ -4671,7 +5081,7 @@ ${segments.join('\n')}
             <button
               onClick={() => {
                 setShowPwaBanner(false);
-                localStorage.setItem('busrun-pwa-dismissed', 'true');
+                localStorage.setItem('metromile-pwa-dismissed', 'true');
               }}
               style={{
                 background: 'transparent',
@@ -4835,17 +5245,28 @@ ${segments.join('\n')}
                     <span className="coach-badge">IA COACH</span>
                     <h4>Entrenamiento de Hoy</h4>
                   </div>
-                  <p>{aiRecommendation.text}</p>
+                  <p>{renderCoachText(aiRecommendation.text)}</p>
                   {aiRecommendation.actionable && aiRecommendation.line && (
-                    <button 
-                      className="btn-coach-action"
-                      onClick={() => {
-                        setSelectedLineId(aiRecommendation.line.id || aiRecommendation.line.ref);
-                        setActiveTab('map');
-                      }}
-                    >
-                      Ver la Línea {aiRecommendation.line.ref} en el Mapa ➔
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                      {!userLocation && (
+                        <button 
+                          className="btn-coach-action"
+                          onClick={detectNearbyLines}
+                          style={{ background: 'var(--brand-orange)', color: 'white' }}
+                        >
+                          📡 Activar GPS / Dar Permisos
+                        </button>
+                      )}
+                      <button 
+                        className="btn-coach-action"
+                        onClick={() => {
+                          setSelectedLineId(aiRecommendation.line.id || aiRecommendation.line.ref);
+                          setActiveTab('map');
+                        }}
+                      >
+                        Ver la Línea {aiRecommendation.line.ref} en el Mapa ➔
+                      </button>
+                    </div>
                   )}
                   <SponsorAdSenseBanner />
                 </div>
@@ -5443,17 +5864,77 @@ ${segments.join('\n')}
                 <div className="sidebar-header-flex" style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--brand-light)', padding: '16px', borderRadius: '16px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span className="route-badge-large">{selectedLine ? selectedLine.ref : ''}</span>
-                    <div>
-                      {selectedLine && !!completed[`${activeCity}_${selectedLine.ref}`] ? (
-                        <span style={{ background: '#ecfdf5', color: '#10b981', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>✓ Completado</span>
-                      ) : (
-                        <span style={{ background: '#fef2f2', color: '#ef4444', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>⏱ Pendiente</span>
-                      )}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {(() => {
+                        if (!selectedLine) return null;
+                        const ref = selectedLine.ref;
+                        const isRunDone = !!completed[`${activeCity}_${ref}_running`] || (!!completed[`${activeCity}_${ref}`] && completed[`${activeCity}_${ref}`].type !== 'cycling');
+                        const isBikeDone = !!completed[`${activeCity}_${ref}_cycling`] || (!!completed[`${activeCity}_${ref}`] && completed[`${activeCity}_${ref}`].type === 'cycling');
+                        
+                        return (
+                          <>
+                            <span 
+                              style={{ 
+                                background: isRunDone ? 'rgba(52, 211, 153, 0.12)' : 'rgba(255,255,255,0.05)', 
+                                color: isRunDone ? '#34d399' : '#94a3b8', 
+                                border: `1px solid ${isRunDone ? '#10b981' : 'rgba(255,255,255,0.1)'}`,
+                                padding: '4px 8px', 
+                                borderRadius: '6px', 
+                                fontSize: '0.7rem', 
+                                fontWeight: 'bold',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              title={isRunDone ? "Completado A Pie" : "Pendiente A Pie"}
+                            >
+                              🏃 {isRunDone ? '✓' : '⏱'}
+                            </span>
+                            <span 
+                              style={{ 
+                                background: isBikeDone ? 'rgba(52, 211, 153, 0.12)' : 'rgba(255,255,255,0.05)', 
+                                color: isBikeDone ? '#34d399' : '#94a3b8', 
+                                border: `1px solid ${isBikeDone ? '#10b981' : 'rgba(255,255,255,0.1)'}`,
+                                padding: '4px 8px', 
+                                borderRadius: '6px', 
+                                fontSize: '0.7rem', 
+                                fontWeight: 'bold',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              title={isBikeDone ? "Completado En Bici" : "Pendiente En Bici"}
+                            >
+                              🚴 {isBikeDone ? '✓' : '⏱'}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div>
                     <h3 style={{ margin: '4px 0 0 0', fontSize: '1.1rem' }}>{selectedLine ? (selectedLine.name.split(': ')[1] || selectedLine.name) : ''}</h3>
                     <span className="operator-name" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Línea Oficial SMyT Burgos</span>
+                    {selectedLine && (
+                      <div style={{ fontSize: '0.75rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                        {(() => {
+                          const ref = selectedLine.ref;
+                          const runComp = completed[`${activeCity}_${ref}_running`] || (completed[`${activeCity}_${ref}`]?.type !== 'cycling' ? completed[`${activeCity}_${ref}`] : null);
+                          const bikeComp = completed[`${activeCity}_${ref}_cycling`] || (completed[`${activeCity}_${ref}`]?.type === 'cycling' ? completed[`${activeCity}_${ref}`] : null);
+                          
+                          return (
+                            <>
+                              {runComp && (
+                                <div>⏱️ Récord A Pie: <strong style={{ color: 'var(--brand-orange)' }}>{formatDuration(runComp.timeSeconds)}</strong> ({runComp.date})</div>
+                              )}
+                              {bikeComp && (
+                                <div>⏱️ Récord En Bici: <strong style={{ color: 'var(--brand-orange)' }}>{formatDuration(bikeComp.timeSeconds)}</strong> ({bikeComp.date})</div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
 
                   {selectedLine && transitAlerts.find(a => a.lineRef === selectedLine.ref) && (() => {
@@ -5618,9 +6099,103 @@ ${segments.join('\n')}
                     }) : null}
                   </div>
                 </div>
+
+                {/* Route Leaderboard / Rankings Section */}
+                {selectedLine && (
+                  <div className="route-leaderboard-section" style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                    <h4 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontSize: '0.85rem', color: 'white', fontWeight: 'bold' }}>
+                      <span>🏆 Clasificación de la Línea</span>
+                    </h4>
+                    
+                    {/* Sport Selector Mini Tabs */}
+                    <div className="segmented-control-mini" style={{ marginBottom: '10px' }}>
+                      <button 
+                        className={`segmented-control-mini-btn ${leaderboardSport === 'running' ? 'active' : ''}`}
+                        onClick={() => setLeaderboardSport('running')}
+                      >
+                        🏃 A Pie
+                      </button>
+                      <button 
+                        className={`segmented-control-mini-btn ${leaderboardSport === 'cycling' ? 'active' : ''}`}
+                        onClick={() => setLeaderboardSport('cycling')}
+                      >
+                        🚴 En Bici
+                      </button>
+                    </div>
+
+                    {/* Leaderboard entries */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                      {(() => {
+                        const entries = getLineLeaderboard(selectedLine.id, leaderboardSport);
+                        return entries.map((entry, idx) => (
+                          <div 
+                            key={idx} 
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between', 
+                              padding: '6px 10px', 
+                              background: entry.userName === userProfile.name ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)', 
+                              border: entry.userName === userProfile.name ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ 
+                                fontWeight: 'bold', 
+                                color: idx === 0 ? '#fbbf24' : idx === 1 ? '#94a3b8' : idx === 2 ? '#b45309' : 'var(--text-muted)',
+                                width: '16px'
+                              }}>
+                                {idx + 1}
+                              </span>
+                              <span>{entry.userAvatar}</span>
+                              <strong style={{ color: entry.userName === userProfile.name ? 'white' : '#cbd5e1' }}>
+                                {entry.userName} {entry.userName === userProfile.name ? '(Tú)' : ''}
+                              </strong>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontWeight: 'bold', color: 'var(--brand-orange)' }}>
+                                {formatDuration(entry.timeSeconds)}
+                              </span>
+                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                ({formatDuration(entry.timeSeconds / selectedLine.distanceKm)}/km)
+                              </span>
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                )}
               </aside>
 
-              <div className="map-canvas-container">
+              <div className="map-canvas-container" style={{ position: 'relative' }}>
+                {isFetchingSurface && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '12px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 1000,
+                    background: 'rgba(15, 23, 42, 0.85)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(252, 82, 0, 0.3)',
+                    padding: '8px 16px',
+                    borderRadius: '20px',
+                    color: 'white',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: 'var(--shadow-md)',
+                    pointerEvents: 'none'
+                  }}>
+                    <span style={{ fontSize: '1rem' }}>⏳</span>
+                    <span>Trazando ruta peatonal en superficie...</span>
+                  </div>
+                )}
                 <MapContainer center={mapCenter} zoom={14} className="main-leaflet-map" scrollWheelZoom={true}>
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -5653,7 +6228,7 @@ ${segments.join('\n')}
                   ) : (
                     selectedLine && (
                       <Polyline 
-                        positions={selectedLine.coords.map(([lat, lon]) => [lat, lon])} 
+                        positions={(surfaceCoords || selectedLine.coords).map(([lat, lon]) => [lat, lon])} 
                         color={selectedLine.color || '#3b82f6'} 
                         weight={6} 
                         opacity={0.88} 
@@ -5664,8 +6239,8 @@ ${segments.join('\n')}
                   <MapViewController center={mapCenter} />
  
                   {/* Start Marker */}
-                  {!activeMapActivity && selectedLine && selectedLine.coords.length > 0 && (
-                    <Marker position={[selectedLine.coords[0][0], selectedLine.coords[0][1]]} icon={startIcon}>
+                  {!activeMapActivity && selectedLine && (surfaceCoords || selectedLine.coords).length > 0 && (
+                    <Marker position={[(surfaceCoords || selectedLine.coords)[0][0], (surfaceCoords || selectedLine.coords)[0][1]]} icon={startIcon}>
                       <Popup>
                         <div className="map-popup">
                           <strong>Punto de Inicio</strong>
@@ -5676,8 +6251,11 @@ ${segments.join('\n')}
                   )}
  
                   {/* End Marker */}
-                  {!activeMapActivity && selectedLine && selectedLine.coords.length > 0 && (
-                    <Marker position={[selectedLine.coords[selectedLine.coords.length - 1][0], selectedLine.coords[selectedLine.coords.length - 1][1]]} icon={endIcon}>
+                  {!activeMapActivity && selectedLine && (surfaceCoords || selectedLine.coords).length > 0 && (
+                    <Marker position={[
+                      (surfaceCoords || selectedLine.coords)[(surfaceCoords || selectedLine.coords).length - 1][0], 
+                      (surfaceCoords || selectedLine.coords)[(surfaceCoords || selectedLine.coords).length - 1][1]
+                    ]} icon={endIcon}>
                       <Popup>
                         <div className="map-popup">
                           <strong>Punto Final</strong>
@@ -5855,6 +6433,27 @@ ${segments.join('\n')}
                   <div className="profile-stat-box">
                     <span className="lbl">Desnivel Acumulado</span>
                     <span className="val">+{totalElevationGainCompleted.toFixed(0)} <span className="sub">m</span></span>
+                  </div>
+                </div>
+
+                {/* Validated Public Transit stats by city */}
+                <div style={{ background: 'var(--brand-light)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '16px', marginTop: '16px', textAlign: 'left' }}>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                    🚇 Km en Transporte Público por Ciudad
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {Object.entries(userStatsByCity).map(([cityId, data]) => {
+                      const cityName = citiesList.find(c => c.id === cityId)?.name || cityId;
+                      return (
+                        <div key={cityId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.15)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem' }}>
+                          <span style={{ fontWeight: '600' }}>{cityName}</span>
+                          <strong style={{ color: 'var(--accent-blue)' }}>{data.km.toFixed(1)} km ({data.linesCount} {data.linesCount === 1 ? 'línea' : 'líneas'})</strong>
+                        </div>
+                      );
+                    })}
+                    {Object.keys(userStatsByCity).length === 0 && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Ningún kilómetro validado aún en transporte público.</span>
+                    )}
                   </div>
                 </div>
 
@@ -6355,6 +6954,12 @@ ${segments.join('\n')}
                       >
                         🚶‍♂️ Caminando
                       </button>
+                      <button 
+                        className={uploadActivityType === 'cycling' ? 'active' : ''} 
+                        onClick={() => setUploadActivityType('cycling')}
+                      >
+                        🚴‍♂️ En Bici
+                      </button>
                     </div>
 
                     <div className="uploader-buttons">
@@ -6547,30 +7152,112 @@ ${segments.join('\n')}
           {/* Search Tab (Lupa icon) */}
           {activeTab === 'search' && (
             <div className="search-tab-layout">
-              <div className="search-bar-header">
-                <h3>Buscar Atletas de la Comunidad</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>
-                  Encuentra y sigue a otros corredores urbanos de tu ciudad para ver su progreso y actividades.
-                </p>
-                <div className="search-input-box">
-                  <input 
-                    type="text" 
-                    placeholder="Buscar atleta por nombre o rango..."
-                    value={athleteSearchQuery}
-                    onChange={(e) => setAthleteSearchQuery(e.target.value)}
-                  />
-                </div>
+              {/* Tab Selector */}
+              <div className="segmented-control" style={{ display: 'flex', background: 'var(--brand-dark-soft)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '8px' }}>
+                <button 
+                  className={`segmented-button ${searchSubTab === 'athletes' ? 'active' : ''}`}
+                  onClick={() => setSearchSubTab('athletes')}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: searchSubTab === 'athletes' ? 'var(--brand-orange)' : 'transparent',
+                    color: searchSubTab === 'athletes' ? 'white' : 'var(--text-muted)',
+                    fontWeight: '600',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  🏃 Atletas
+                </button>
+                <button 
+                  className={`segmented-button ${searchSubTab === 'challenges' ? 'active' : ''}`}
+                  onClick={() => setSearchSubTab('challenges')}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: searchSubTab === 'challenges' ? 'var(--brand-orange)' : 'transparent',
+                    color: searchSubTab === 'challenges' ? 'white' : 'var(--text-muted)',
+                    fontWeight: '600',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  🗺️ Retos Virtuales
+                </button>
               </div>
 
-              {/* Recommendations Section */}
-              {recommendedAthletes.length > 0 && !athleteSearchQuery && (
-                <div className="recommended-athletes-section" style={{ marginBottom: '24px' }}>
-                  <h4 style={{ color: 'var(--brand-orange)', marginBottom: '12px', fontSize: '0.95rem', fontWeight: 'bold' }}>✨ Recomendados por tus seguidos:</h4>
-                  <div className="athletes-results-grid" style={{ marginBottom: '24px' }}>
-                    {recommendedAthletes.map((ath) => {
+              {searchSubTab === 'athletes' ? (
+                <>
+                  <div className="search-bar-header">
+                    <h3>Buscar Atletas de la Comunidad</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>
+                      Encuentra y sigue a otros corredores urbanos de tu ciudad para ver su progreso y actividades.
+                    </p>
+                    <div className="search-input-box">
+                      <input 
+                        type="text" 
+                        placeholder="Buscar atleta por nombre o rango..."
+                        value={athleteSearchQuery}
+                        onChange={(e) => setAthleteSearchQuery(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Recommendations Section */}
+                  {recommendedAthletes.length > 0 && !athleteSearchQuery && (
+                    <div className="recommended-athletes-section" style={{ marginBottom: '24px' }}>
+                      <h4 style={{ color: 'var(--brand-orange)', marginBottom: '12px', fontSize: '0.95rem', fontWeight: 'bold' }}>✨ Recomendados por tus seguidos:</h4>
+                      <div className="athletes-results-grid" style={{ marginBottom: '24px' }}>
+                        {recommendedAthletes.map((ath) => {
+                          const isFav = !!favoriteAthletes[ath.id];
+                          return (
+                            <div key={ath.id} className="athlete-card recommended-card" style={{ cursor: 'pointer', border: '1px dashed rgba(252, 82, 0, 0.4)', background: 'rgba(252, 82, 0, 0.05)' }} onClick={() => setSelectedAthleteId(ath.id)}>
+                              {renderAvatar(ath.avatar, 'athlete-avatar')}
+                              <div className="athlete-meta">
+                                <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  {ath.name}
+                                  {isFav && <span style={{ fontSize: '0.8rem' }}>⭐</span>}
+                                </strong>
+                                <span className="rank">{ath.rankName} ({ath.pct}%)</span>
+                                <span className="stats">{ath.lines} líneas completadas · {ath.km} km</span>
+                                <span style={{ fontSize: '0.65rem', color: '#ff8a50', marginTop: '4px', fontStyle: 'italic' }}>Seguido por tus seguidos</span>
+                              </div>
+                              <button 
+                                className={`btn-follow-athlete ${followedAthletes[ath.id] ? 'following' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleFollow(ath.id, ath.name);
+                                }}
+                              >
+                                {followedAthletes[ath.id] ? 'Siguiendo' : 'Seguir'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <h4 style={{ marginBottom: '12px', fontSize: '0.95rem', fontWeight: 'bold', color: 'white' }}>Todos los Atletas:</h4>
+                  <div className="athletes-results-grid">
+                    {activeAthletesList.filter(ath => ath.name.toLowerCase().includes(athleteSearchQuery.toLowerCase()) || ath.rankName.toLowerCase().includes(athleteSearchQuery.toLowerCase())).map((ath) => {
                       const isFav = !!favoriteAthletes[ath.id];
                       return (
-                        <div key={ath.id} className="athlete-card recommended-card" style={{ cursor: 'pointer', border: '1px dashed rgba(252, 82, 0, 0.4)', background: 'rgba(252, 82, 0, 0.05)' }} onClick={() => setSelectedAthleteId(ath.id)}>
+                        <div key={ath.id} className="athlete-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedAthleteId(ath.id)}>
                           {renderAvatar(ath.avatar, 'athlete-avatar')}
                           <div className="athlete-meta">
                             <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -6579,7 +7266,6 @@ ${segments.join('\n')}
                             </strong>
                             <span className="rank">{ath.rankName} ({ath.pct}%)</span>
                             <span className="stats">{ath.lines} líneas completadas · {ath.km} km</span>
-                            <span style={{ fontSize: '0.65rem', color: '#ff8a50', marginTop: '4px', fontStyle: 'italic' }}>Seguido por tus seguidos</span>
                           </div>
                           <button 
                             className={`btn-follow-athlete ${followedAthletes[ath.id] ? 'following' : ''}`}
@@ -6594,71 +7280,248 @@ ${segments.join('\n')}
                       );
                     })}
                   </div>
+
+                  <div 
+                    style={{ 
+                      marginTop: '30px', 
+                      padding: '16px', 
+                      borderRadius: '12px', 
+                      background: 'rgba(255,255,255,0.02)', 
+                      border: '1px solid rgba(255,255,255,0.05)', 
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <span style={{ fontSize: '1.5rem' }}>🗺️</span>
+                    <strong style={{ fontSize: '0.9rem', color: 'white' }}>{t('city_not_found')}</strong>
+                    <button
+                      onClick={() => setCityRequestModal(true)}
+                      style={{
+                        background: 'var(--brand-orange)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '8px 16px',
+                        fontWeight: 'bold',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s'
+                      }}
+                    >
+                      ➕ {t('request_city')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Virtual Challenges Dashboard */
+                <div className="virtual-challenges-page">
+                  <div className="search-bar-header" style={{ marginBottom: '20px' }}>
+                    <h3>🗺️ Retos Virtuales de Otras Ciudades</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      Acumula kilómetros con tus entrenamientos en cualquier parte del mundo para completar líneas de transporte icónicas globales y conseguir sellos en tu pasaporte.
+                    </p>
+                  </div>
+
+                  {/* Active Challenge Card */}
+                  {(() => {
+                    const journey = VIRTUAL_JOURNEYS.find(j => j.id === activeVirtualJourney) || VIRTUAL_JOURNEYS[0];
+                    const progressKm = virtualProgress[journey.id] || 0;
+                    const percent = Math.min(100, (progressKm / journey.totalKm) * 100);
+                    const isDone = progressKm >= journey.totalKm;
+                    
+                    return (
+                      <div className="active-challenge-hero card-glow" style={{
+                        background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                        border: '1px solid rgba(6, 182, 212, 0.3)',
+                        borderRadius: '16px',
+                        padding: '20px',
+                        marginBottom: '24px',
+                        position: 'relative'
+                      }}>
+                        <span style={{ 
+                          position: 'absolute', 
+                          top: '16px', 
+                          right: '16px', 
+                          background: 'rgba(6, 182, 212, 0.2)', 
+                          color: '#22d3ee', 
+                          fontSize: '0.65rem', 
+                          padding: '4px 8px', 
+                          borderRadius: '20px', 
+                          fontWeight: 'bold',
+                          letterSpacing: '0.05em'
+                        }}>
+                          RETO ACTIVO
+                        </span>
+                        
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '3rem' }}>{journey.badgeIcon}</span>
+                          <div style={{ flex: 1, textAlign: 'left' }}>
+                            <h4 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'white' }}>
+                              {userSettings.lang === 'es' ? journey.nameEs : journey.nameEn}
+                            </h4>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              Ciudad: {journey.city} · Distancia Total: {journey.totalKm} km
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop: '20px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>Progreso de la línea:</span>
+                            <strong style={{ fontSize: '0.85rem', color: isDone ? 'var(--accent-green)' : 'white' }}>
+                              {isDone ? '🎉 ¡COMPLETADO!' : `${progressKm.toFixed(1)} / ${journey.totalKm} km (${percent.toFixed(0)}%)`}
+                            </strong>
+                          </div>
+                          
+                          <div style={{ height: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
+                            <div style={{
+                              height: '100%',
+                              width: `${percent}%`,
+                              background: `linear-gradient(90deg, ${journey.color}, #06b6d4)`,
+                              borderRadius: '10px',
+                              transition: 'width 0.5s ease'
+                            }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Grid of all Challenges */}
+                  <h4 style={{ color: 'white', marginBottom: '16px', fontWeight: 'bold', textAlign: 'left' }}>Explorar Retos Virtuales</h4>
+                  <div className="challenges-grid" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: '16px',
+                    marginBottom: '30px'
+                  }}>
+                    {VIRTUAL_JOURNEYS.map(j => {
+                      const prog = virtualProgress[j.id] || 0;
+                      const isDone = prog >= j.totalKm;
+                      const percent = Math.min(100, (prog / j.totalKm) * 100);
+                      const isActive = j.id === activeVirtualJourney;
+
+                      return (
+                        <div key={j.id} className={`challenge-card ${isActive ? 'active' : ''}`} style={{
+                          background: 'var(--brand-light)',
+                          border: isActive ? `2px solid ${j.color}` : '1px solid var(--border-color)',
+                          borderRadius: '16px',
+                          padding: '16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}>
+                          <div style={{ textAlign: 'left' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <span style={{ fontSize: '1.8rem' }}>{j.badgeIcon}</span>
+                              {isDone && (
+                                <span style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', fontSize: '0.6rem', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                                  ✓ COMPLETADO
+                                </span>
+                              )}
+                            </div>
+                            
+                            <h5 style={{ margin: '8px 0 2px 0', fontSize: '0.95rem', fontWeight: 'bold', color: 'white' }}>
+                              {userSettings.lang === 'es' ? j.nameEs : j.nameEn}
+                            </h5>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
+                              {j.city} · {j.totalKm} km
+                            </span>
+
+                            <div style={{ marginTop: '8px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                                <span>Progreso:</span>
+                                <span>{percent.toFixed(0)}%</span>
+                              </div>
+                              <div style={{ height: '6px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', overflow: 'hidden' }}>
+                                <div style={{
+                                  height: '100%',
+                                  width: `${percent}%`,
+                                  background: j.color,
+                                  borderRadius: '10px'
+                                }}></div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setActiveVirtualJourney(j.id);
+                              localStorage.setItem('metromile-active-journey', j.id);
+                              addNotification('Retos', `Has establecido ${userSettings.lang === 'es' ? j.nameEs : j.nameEn} como tu reto activo.`, 'success');
+                            }}
+                            disabled={isActive}
+                            style={{
+                              width: '100%',
+                              padding: '10px',
+                              borderRadius: '8px',
+                              border: isActive ? 'none' : '1px solid var(--border-color)',
+                              background: isActive ? 'rgba(255,255,255,0.05)' : 'var(--brand-dark-soft)',
+                              color: isActive ? 'var(--text-muted)' : 'white',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold',
+                              cursor: isActive ? 'default' : 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {isActive ? 'Reto Activo ⭐' : 'Establecer como Reto Activo'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Passport Stamps Collection in Search */}
+                  <div className="passport-stamps-card card-glow" style={{
+                    background: 'var(--brand-dark-soft)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    textAlign: 'left'
+                  }}>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 'bold', color: 'white' }}>
+                      🎒 Pasaporte de Sellos
+                    </h4>
+                    <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Consigue una medalla por cada línea virtual que completes al 100%. ¡Completa los viajes y llena tu pasaporte!
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                      {VIRTUAL_JOURNEYS.map(j => {
+                        const prog = virtualProgress[j.id] || 0;
+                        const isDone = prog >= j.totalKm;
+                        return (
+                          <div
+                            key={j.id}
+                            title={`${userSettings.lang === 'es' ? j.nameEs : j.nameEn} (${isDone ? 'Conquistado' : 'Pendiente'})`}
+                            style={{
+                              width: '50px',
+                              height: '50px',
+                              borderRadius: '50%',
+                              background: isDone ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.2)',
+                              border: isDone ? `3px solid ${j.color}` : '2px dashed rgba(255,255,255,0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '1.8rem',
+                              opacity: isDone ? 1 : 0.2,
+                              filter: isDone ? 'none' : 'grayscale(100%)',
+                              transition: 'all 0.3s'
+                            }}
+                          >
+                            {j.badgeIcon}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
-
-              <h4 style={{ marginBottom: '12px', fontSize: '0.95rem', fontWeight: 'bold', color: 'white' }}>Todos los Atletas:</h4>
-              <div className="athletes-results-grid">
-                {activeAthletesList.filter(ath => ath.name.toLowerCase().includes(athleteSearchQuery.toLowerCase()) || ath.rankName.toLowerCase().includes(athleteSearchQuery.toLowerCase())).map((ath) => {
-                  const isFav = !!favoriteAthletes[ath.id];
-                  return (
-                    <div key={ath.id} className="athlete-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedAthleteId(ath.id)}>
-                      {renderAvatar(ath.avatar, 'athlete-avatar')}
-                      <div className="athlete-meta">
-                        <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {ath.name}
-                          {isFav && <span style={{ fontSize: '0.8rem' }}>⭐</span>}
-                        </strong>
-                        <span className="rank">{ath.rankName} ({ath.pct}%)</span>
-                        <span className="stats">{ath.lines} líneas completadas · {ath.km} km</span>
-                      </div>
-                      <button 
-                        className={`btn-follow-athlete ${followedAthletes[ath.id] ? 'following' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleFollow(ath.id, ath.name);
-                        }}
-                      >
-                        {followedAthletes[ath.id] ? 'Siguiendo' : 'Seguir'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div 
-                style={{ 
-                  marginTop: '30px', 
-                  padding: '16px', 
-                  borderRadius: '12px', 
-                  background: 'rgba(255,255,255,0.02)', 
-                  border: '1px solid rgba(255,255,255,0.05)', 
-                  textAlign: 'center',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <span style={{ fontSize: '1.5rem' }}>🗺️</span>
-                <strong style={{ fontSize: '0.9rem', color: 'white' }}>{t('city_not_found')}</strong>
-                <button
-                  onClick={() => setCityRequestModal(true)}
-                  style={{
-                    background: 'var(--brand-orange)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '8px 16px',
-                    fontWeight: 'bold',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s'
-                  }}
-                >
-                  ➕ {t('request_city')}
-                </button>
-              </div>
             </div>
           )}
         </main>
@@ -6742,104 +7605,116 @@ ${segments.join('\n')}
         </div>
       )}
 
-      {/* Onboarding Tutorial Modal */}
+      {/* Onboarding Tutorial Floating Panel */}
       {tutorialStep !== null && (
-        <div className="login-modal-overlay" style={{ zIndex: 9999999 }}>
-          <div className="login-modal-card" style={{ width: '100%', maxWidth: '420px', padding: '24px', textAlign: 'center', position: 'relative' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--brand-orange)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Tutorial de Bienvenida ({tutorialStep}/5)
+        <div style={{
+          position: 'fixed',
+          bottom: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '90%',
+          maxWidth: '400px',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.98) 100%)',
+          backdropFilter: 'blur(16px)',
+          border: '2px solid var(--brand-orange)',
+          borderRadius: '16px',
+          padding: '16px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(252, 82, 0, 0.2)',
+          zIndex: 999999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--brand-orange)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Guía Interactiva ({tutorialStep}/{getTutorialSteps().length})
             </span>
+            <button 
+              onClick={() => {
+                localStorage.setItem('metromile-tutorial-seen', 'true');
+                setTutorialStep(null);
+              }}
+              style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              Omitir
+            </button>
+          </div>
+          
+          {(() => {
+            const steps = getTutorialSteps();
+            const currentStep = steps[Math.min(steps.length - 1, (tutorialStep || 1) - 1)];
+            if (!currentStep) return null;
+            return (
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '2rem', flexShrink: 0 }}>{currentStep.emoji}</span>
+                <div style={{ flex: 1, textAlign: 'left' }}>
+                  <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', color: 'white', fontWeight: 'bold' }}>{currentStep.title}</h4>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                    {currentStep.text}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '8px' }}>
+            {tutorialStep > 1 ? (
+              <button 
+                onClick={() => setTutorialStep(s => s ? Math.max(1, s - 1) : 1)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #475569',
+                  background: 'transparent',
+                  color: '#94a3b8',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                Atrás
+              </button>
+            ) : <div />}
             
-            {tutorialStep === 1 && (
-              <div>
-                <div style={{ fontSize: '3rem', margin: '16px 0' }}>⚡</div>
-                <h3>¡Bienvenido/a a MetroMile!</h3>
-                <p style={{ margin: '12px 0 20px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-                  MetroMile es la red social deportiva de corredores urbanos. Tu misión es <strong>completar las líneas de transporte urbano</strong> corriendo o caminando por su trazado de paradas.
-                </p>
-              </div>
+            {tutorialStep < getTutorialSteps().length ? (
+              <button 
+                onClick={() => setTutorialStep(s => s ? Math.min(getTutorialSteps().length, s + 1) : 2)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'var(--brand-orange)',
+                  color: 'white',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(252, 82, 0, 0.25)'
+                }}
+              >
+                Siguiente
+              </button>
+            ) : (
+              <button 
+                onClick={() => {
+                  localStorage.setItem('metromile-tutorial-seen', 'true');
+                  setTutorialStep(null);
+                  addNotification('Social', '¡Registro y tutorial completado! Bienvenido a MetroMile.', 'success');
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'var(--accent-green)',
+                  color: 'white',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)'
+                }}
+              >
+                ¡Listo! ⚔️
+              </button>
             )}
-
-            {tutorialStep === 2 && (
-              <div>
-                <div style={{ fontSize: '3rem', margin: '16px 0' }}>🏆</div>
-                <h3>Progresión y Rango Global</h3>
-                <p style={{ margin: '12px 0 20px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-                  Cada línea completada suma porcentaje a tu progresión. Pasa de ser un simple <strong>Transeúnte (0%)</strong> hasta el legendario <strong>Leyenda del Tránsito (100%)</strong>.
-                </p>
-              </div>
-            )}
-
-            {tutorialStep === 3 && (
-              <div>
-                <div style={{ fontSize: '3rem', margin: '16px 0' }}>🧡</div>
-                <h3>Sincronizar con Strava</h3>
-                <p style={{ margin: '12px 0 20px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-                  Vincula tu cuenta de <strong>Strava</strong> desde tu perfil. Cualquier actividad que grabes con tu reloj Garmin, Apple Watch, Polar, Suunto o móvil se sincronizarán automáticamente y validarán tu recorrido.
-                </p>
-              </div>
-            )}
-
-            {tutorialStep === 4 && (
-              <div>
-                <div style={{ fontSize: '3rem', margin: '16px 0' }}>📡</div>
-                <h3>GPS en Vivo y Simulador</h3>
-                <p style={{ margin: '12px 0 20px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-                  ¿No tienes reloj? ¡Graba tu actividad en tiempo real con el GPS del móvil en el feed, o usa el <strong>simulador en vivo</strong> para probar cómo funciona desde casa!
-                </p>
-              </div>
-            )}
-
-            {tutorialStep === 5 && (
-              <div>
-                <div style={{ fontSize: '3rem', margin: '16px 0' }}>🗺️</div>
-                <h3>Mapa e Hitos Unificados</h3>
-                <p style={{ margin: '12px 0 20px 0', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-                  En la pestaña Mapa puedes seleccionar cualquier línea, cambiar de sentido y ver la checklist de paradas completadas en tiempo real. ¡Disfruta de la experiencia urbana!
-                </p>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '20px' }}>
-              {tutorialStep > 1 ? (
-                <button 
-                  onClick={() => setTutorialStep(s => s ? s - 1 : 1)}
-                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #777', background: 'transparent', color: '#ccc', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  Atrás
-                </button>
-              ) : (
-                <button 
-                  onClick={() => {
-                    localStorage.setItem('busrun-tutorial-seen', 'true');
-                    setTutorialStep(null);
-                  }}
-                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#94a3b8', fontSize: '0.8rem', cursor: 'pointer' }}
-                >
-                  Omitir
-                </button>
-              )}
-
-              {tutorialStep < 5 ? (
-                <button 
-                  onClick={() => setTutorialStep(s => s ? s + 1 : 5)}
-                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  Siguiente
-                </button>
-              ) : (
-                <button 
-                  onClick={() => {
-                    localStorage.setItem('busrun-tutorial-seen', 'true');
-                    setTutorialStep(null);
-                    addNotification('Social', '¡Tutorial visto! Todo listo para empezar.', 'success');
-                  }}
-                  style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'var(--accent-green)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  ¡Entendido! ⚔️
-                </button>
-              )}
-            </div>
           </div>
         </div>
       )}
@@ -6997,7 +7872,7 @@ ${segments.join('\n')}
                       value={googleClientId} 
                       onChange={(e) => {
                         setGoogleClientId(e.target.value);
-                        localStorage.setItem('busrun-google-client-id', e.target.value);
+                        localStorage.setItem('metromile-google-client-id', e.target.value);
                       }}
                       placeholder="Pega tu Google Client ID aquí"
                       style={{
@@ -7554,14 +8429,36 @@ ${segments.join('\n')}
                       </div>
                     </div>
                     
-                    <div style={{ textAlign: 'left', marginBottom: '20px' }}>
+                    <div style={{ textAlign: 'left', marginBottom: '16px' }}>
                       <h4 style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '6px' }}>Líneas Completadas:</h4>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '100px', overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '70px', overflowY: 'auto' }}>
                         {selectedAthlete.completedRefs.map((ref: string) => (
                           <span key={ref} style={{ fontSize: '0.7rem', fontWeight: 'bold', background: 'var(--brand-orange-light)', color: 'var(--brand-orange)', padding: '3px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                             {ref}
                           </span>
                         ))}
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'left', marginBottom: '20px' }}>
+                      <h4 style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '6px' }}>🚇 Km en Transporte Público:</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {selectedAthlete.statsByCity ? (
+                          Object.entries(selectedAthlete.statsByCity).map(([cityId, data]: any) => {
+                            const cityName = citiesList.find(c => c.id === cityId)?.name || cityId;
+                            return (
+                              <div key={cityId} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem' }}>
+                                <span>{cityName}</span>
+                                <strong style={{ color: 'var(--accent-blue)' }}>{data.km.toFixed(1)} km ({data.linesCount} {data.linesCount === 1 ? 'línea' : 'líneas'})</strong>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem' }}>
+                            <span>Burgos</span>
+                            <strong style={{ color: 'var(--accent-blue)' }}>{(selectedAthlete.km || 0).toFixed(1)} km ({(selectedAthlete.lines || 0)} líneas)</strong>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -7720,6 +8617,101 @@ ${segments.join('\n')}
           }}
         >
           🚀 ¡Nueva versión disponible! Toca para actualizar
+        </div>
+      )}
+
+      {/* Circular Route GPX Rotation Modal */}
+      {gpxRotationModal.open && gpxRotationModal.route && (
+        <div className="login-modal-overlay" style={{ zIndex: 9999999 }}>
+          <div className="login-modal-card" style={{ width: '100%', maxWidth: '440px', padding: '24px', textAlign: 'left' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🔄 {userSettings.lang === 'es' ? 'Ruta Circular Detectada' : 'Circular Route Detected'}
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              {userSettings.lang === 'es' 
+                ? 'Como es una ruta circular, puedes empezar y acabar en la parada que prefieras. Selecciona tu parada de salida:' 
+                : 'Since this is a circular route, you can start and end at any stop. Choose your starting stop:'}
+            </p>
+            
+            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', marginBottom: '16px', background: 'rgba(0,0,0,0.2)' }}>
+              {gpxRotationModal.route.stops.map((stop, idx) => (
+                <button
+                  key={stop.id || idx}
+                  onClick={() => handleRotateAndDownload(gpxRotationModal.route!, idx)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    textAlign: 'left',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: idx < gpxRotationModal.route!.stops.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    color: '#cbd5e1',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: 'var(--brand-orange)', fontWeight: 'bold' }}>#{idx + 1}</span>
+                    <span>{stop.name}</span>
+                  </span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>➔ {userSettings.lang === 'es' ? 'Empezar aquí' : 'Start here'}</span>
+                </button>
+              ))}
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                onClick={() => setGpxRotationModal({ open: false, route: null })}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid #777',
+                  background: 'transparent',
+                  color: '#ccc',
+                  fontSize: '0.8rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                {userSettings.lang === 'es' ? 'Cancelar' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lucky Ticket Stamp Animation Overlay */}
+      {isStampingTicket && stampingReward && (
+        <div className="ticket-stamp-overlay">
+          <div className="ticket-stamp-container" style={{ border: `3px solid ${stampingReward.type === 'multiplier' ? '#eab308' : '#10b981'}`, background: 'linear-gradient(135deg, #1e293b 0%, #020617 100%)' }}>
+            <div style={{ fontSize: '1.2rem', color: '#3b82f6', marginBottom: '8px', opacity: 0.2, fontWeight: '800', letterSpacing: '2px' }}>
+              🎫 METROMILE TICKET
+            </div>
+            
+            {/* The descending stamp effect */}
+            <div className="ticket-stamp-ink" style={{ 
+              color: stampingReward.type === 'multiplier' ? '#eab308' : '#10b981', 
+              borderColor: stampingReward.type === 'multiplier' ? '#eab308' : '#10b981',
+              background: stampingReward.type === 'multiplier' ? 'rgba(234, 179, 8, 0.05)' : 'rgba(16, 185, 129, 0.05)'
+            }}>
+              <span style={{ marginRight: '6px' }}>{stampingReward.icon}</span>
+              {stampingReward.label}
+            </div>
+            
+            <div className="ticket-stamp-subtext" style={{ fontSize: '1rem', fontWeight: 'bold', color: 'white', marginTop: '24px' }}>
+              Validando billete...
+            </div>
+            <div className="ticket-stamp-subtext" style={{ fontSize: '0.8rem', color: '#cbd5e1', marginTop: '4px' }}>
+              {stampingReward.desc.split(' (')[0]}
+            </div>
+          </div>
         </div>
       )}
 
