@@ -704,6 +704,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'feed' | 'routes' | 'map' | 'profile' | 'search'>('feed');
   const [loadedBusLines, setLoadedBusLines] = useState<LineRoute[]>([]);
   const burgosBusLines = loadedBusLines; // Keep reference to avoid breaking old variables
+  const uniqueLineRefs = useMemo(() => {
+    return Array.from(new Set(burgosBusLines.map(l => l.ref))).sort();
+  }, [burgosBusLines]);
   const [selectedLineId, setSelectedLineId] = useState<string>('');
   
   // Completed is stored as: Record of "city_lineRef" (e.g. "burgos_L01") -> completion details
@@ -774,6 +777,147 @@ export default function App() {
       return updated;
     });
   };
+
+  const [xp, setXp] = useState(() => Number(localStorage.getItem('metromile-xp') || '350'));
+  const [ticketCheckedDate, setTicketCheckedDate] = useState(() => localStorage.getItem('metromile-ticket-checked-date') || '');
+  const [ticketReward, setTicketReward] = useState<{ type: string; value: number; desc: string; icon: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem('metromile-ticket-reward');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const currentLevel = Math.floor(xp / 1000) + 1;
+  const currentLevelXP = (currentLevel - 1) * 1000;
+  const levelProgressPct = Math.min(100, Math.max(0, ((xp - currentLevelXP) / 1000) * 100));
+
+  const transitAlerts = useMemo(() => {
+    if (uniqueLineRefs.length === 0) return [];
+    const d = new Date();
+    const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    const lcg = (s: number) => (s * 1664525 + 1013904223) % 4294967296;
+    
+    let r1 = lcg(seed);
+    let r2 = lcg(r1);
+    
+    const idx1 = r1 % uniqueLineRefs.length;
+    let idx2 = r2 % uniqueLineRefs.length;
+    if (idx1 === idx2 && uniqueLineRefs.length > 1) {
+      idx2 = (idx2 + 1) % uniqueLineRefs.length;
+    }
+    
+    const lineRef1 = uniqueLineRefs[idx1];
+    const lineRef2 = uniqueLineRefs[idx2];
+    
+    return [
+      {
+        lineRef: lineRef1,
+        type: 'strike',
+        multiplier: 2.0,
+        titleEs: '🚨 HUELGA GENERAL: Servicio Paralizado',
+        titleEn: '🚨 GENERAL STRIKE: Service Halted',
+        descEs: `La línea ${lineRef1} está en huelga hoy. ¡Corre el trayecto a pie para rescatar a los pasajeros y gana duplicador 2.0x XP!`,
+        descEn: `Line ${lineRef1} is on strike today. Run the route on foot to help stranded commuters and earn a 2.0x XP multiplier!`,
+        color: '#ef4444',
+        icon: '🚨'
+      },
+      {
+        lineRef: lineRef2,
+        type: 'delay',
+        multiplier: 1.5,
+        titleEs: '⚠️ CATENARIA ROTA: Retrasos Graves',
+        titleEn: '⚠️ DOWNED WIRE: Severe Delays',
+        descEs: `Avería técnica en la línea ${lineRef2}. Corre a pie para 'adelantar' al metro y gana un multiplicador de 1.5x XP.`,
+        descEn: `Technical failure on line ${lineRef2}. Run the route to outrun the trains and earn a 1.5x XP multiplier.`,
+        color: '#f59e0b',
+        icon: '⚠️'
+      }
+    ];
+  }, [uniqueLineRefs]);
+
+  const awardXpForCompletedActivity = (distanceKm: number, lineRef?: string) => {
+    let baseXp = Math.round(distanceKm * 100);
+    if (baseXp <= 0) baseXp = 50;
+    
+    let multiplier = 1.0;
+    const today = new Date().toDateString();
+    if (ticketCheckedDate === today && ticketReward && ticketReward.type === 'multiplier') {
+      multiplier = Math.max(multiplier, ticketReward.value);
+    }
+    
+    if (lineRef) {
+      const activeAlert = transitAlerts.find(a => a.lineRef === lineRef);
+      if (activeAlert) {
+        multiplier = Math.max(multiplier, activeAlert.multiplier);
+      }
+    }
+    
+    const finalXp = Math.round(baseXp * multiplier);
+    
+    setXp(prev => {
+      const next = prev + finalXp;
+      localStorage.setItem('metromile-xp', String(next));
+      return next;
+    });
+
+    setTimeout(() => {
+      addNotification(
+        'MetroMile', 
+        userSettings.lang === 'es' 
+          ? `⚡ ¡Ganaste +${finalXp} XP! (Base: ${baseXp} XP, Multiplicador: ${multiplier}x)` 
+          : `⚡ Earned +${finalXp} XP! (Base: ${baseXp} XP, Multiplier: ${multiplier}x)`, 
+        'success'
+      );
+    }, 200);
+  };
+
+  const handleValidateTicket = () => {
+    const today = new Date().toDateString();
+    if (ticketCheckedDate === today) return;
+    
+    const rewards = [
+      { type: 'multiplier', value: 2.0, desc: userSettings.lang === 'es' ? 'Duplicador de Tránsito (2.0x XP en todas tus carreras hoy)' : 'Transit Doubler (2.0x XP on all runs today)', icon: '⚡' },
+      { type: 'multiplier', value: 1.5, desc: userSettings.lang === 'es' ? 'Super Booster (1.5x XP en todas tus carreras hoy)' : 'Super Booster (1.5x XP on all runs today)', icon: '🔥' },
+      { type: 'xp', value: 250, desc: userSettings.lang === 'es' ? 'Recompensa Instantánea (+250 XP añadidos de inmediato)' : 'Instant Reward (+250 XP added immediately)', icon: '🎁' },
+      { type: 'xp', value: 150, desc: userSettings.lang === 'es' ? 'Recompensa de Metro (+150 XP añadidos de inmediato)' : 'Metro Reward (+150 XP added immediately)', icon: '🎫' }
+    ];
+    
+    const reward = rewards[Math.floor(Math.random() * rewards.length)];
+    
+    setTicketCheckedDate(today);
+    setTicketReward(reward);
+    localStorage.setItem('metromile-ticket-checked-date', today);
+    localStorage.setItem('metromile-ticket-reward', JSON.stringify(reward));
+    
+    if (reward.type === 'xp') {
+      setXp(prev => {
+        const next = prev + reward.value;
+        localStorage.setItem('metromile-xp', String(next));
+        return next;
+      });
+    }
+    
+    addNotification(
+      'MetroMile',
+      userSettings.lang === 'es' 
+        ? `🎫 ¡Billete Validado! Recompensa: ${reward.desc}` 
+        : `🎫 Ticket Validated! Reward: ${reward.desc}`,
+      'success'
+    );
+  };
+
+  useEffect(() => {
+    const today = new Date().toDateString();
+    const checkedDate = localStorage.getItem('metromile-ticket-checked-date') || '';
+    if (checkedDate && checkedDate !== today) {
+      setTicketCheckedDate('');
+      setTicketReward(null);
+      localStorage.removeItem('metromile-ticket-checked-date');
+      localStorage.removeItem('metromile-ticket-reward');
+    }
+  }, []);
 
   const handlePrestigeReset = () => {
     const nextCount = prestigeCount + 1;
@@ -1490,6 +1634,8 @@ export default function App() {
     newActivities.forEach(act => {
       if (act.distanceKm > 0) {
         addedKm += act.distanceKm;
+        // Award XP for this run!
+        awardXpForCompletedActivity(act.distanceKm, act.lineRef);
       }
     });
     if (addedKm > 0) {
@@ -1994,9 +2140,7 @@ export default function App() {
     return [42.3431, -3.7009];
   }, [selectedLine, userLocation, activeMapActivity]);
 
-  const uniqueLineRefs = useMemo(() => {
-    return Array.from(new Set(burgosBusLines.map(l => l.ref))).sort();
-  }, [burgosBusLines]);
+
 
   const burgosCompletedUniqueCount = useMemo(() => {
     return uniqueLineRefs.filter(ref => !!completed[`${activeCity}_${ref}`]).length;
@@ -3777,17 +3921,36 @@ ${segments.join('\n')}
                     {renderAvatar(userProfile.avatar, 'avatar-preview', triggerAvatarChange, 'Haz clic para cambiar tu foto de perfil')}
                   </div>
                   <div className="info-preview">
-                    <h3>{userProfile.name}</h3>
-                    <p className="city-label">Progreso Global: {globalCompletionPercentage.toFixed(0)}%</p>
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      {userProfile.name}
+                      {prestigeCount > 0 && <span style={{ color: '#f59e0b', fontSize: '0.7rem' }}>★{prestigeCount}</span>}
+                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(37, 99, 235, 0.15)', padding: '2px 8px', borderRadius: '12px', width: 'fit-content', marginTop: '4px' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: '#60a5fa' }}>NIVEL {currentLevel}</span>
+                    </div>
+                  </div>
+                  
+                  {/* XP progress bar */}
+                  <div style={{ padding: '0 16px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#cbd5e1', marginBottom: '2px' }}>
+                      <span>XP Acumulada</span>
+                      <span>{xp} XP</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--brand-dark-soft)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${levelProgressPct}%`, background: 'linear-gradient(90deg, #3b82f6, #60a5fa)', borderRadius: '10px' }}></div>
+                    </div>
+                    <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px', textAlign: 'right' }}>
+                      {userSettings.lang === 'es' ? `Faltan ${1000 - (xp % 1000)} XP para Nivel ${currentLevel + 1}` : `${1000 - (xp % 1000)} XP to Level ${currentLevel + 1}`}
+                    </span>
                   </div>
                   
                   {/* Rank progression display */}
-                  <div className="rank-progress-indicator">
+                  <div className="rank-progress-indicator" style={{ borderTop: '1px solid var(--border-color)', marginTop: '12px', paddingTop: '12px' }}>
                     <span className="progress-label">Rango: {currentRank.title} {currentRank.icon}</span>
                     {globalCompletionPercentage < 100 ? (
                       <span className="next-rank-lbl">
                         Siguiente rango: <strong>{GLOBAL_RANKS.find(r => r.minPercentage > globalCompletionPercentage)?.name}</strong> 
-                        (requiere alcanzar el {GLOBAL_RANKS.find(r => r.minPercentage > globalCompletionPercentage)!.minPercentage}%)
+                        (requiere {GLOBAL_RANKS.find(r => r.minPercentage > globalCompletionPercentage)!.minPercentage}%)
                       </span>
                     ) : (
                       <span className="next-rank-lbl text-gold">¡Héroe del Tránsito: 100% completado! ⚔️</span>
@@ -3797,7 +3960,7 @@ ${segments.join('\n')}
                   <div className="stats-mini-grid">
                     <div>
                       <span className="num">{burgosCompletionPercentage.toFixed(0)}%</span>
-                      <span className="lbl">Burgos</span>
+                      <span className="lbl">{citiesList.find(c => c.id === activeCity)?.name || 'Activa'}</span>
                     </div>
                     <div>
                       <span className="num">{burgosCompletedUniqueCount}</span>
@@ -3849,6 +4012,37 @@ ${segments.join('\n')}
                     </button>
                   )}
                   <SponsorAdSenseBanner />
+                </div>
+
+                {/* Live Transit Alerts Board */}
+                <div className="sidebar-card card-glow" style={{
+                  background: 'var(--brand-dark-soft)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  marginTop: '16px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ background: '#ef4444', color: 'white', fontSize: '0.65rem', padding: '3px 6px', borderRadius: '4px', fontWeight: 'bold' }}>📡 INCIDENCIAS EN VIVO</span>
+                    <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'white', fontWeight: 'bold' }}>Boletín de Tránsito</h4>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {transitAlerts.length > 0 ? transitAlerts.map((alertItem, idx) => (
+                      <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: `1px solid ${alertItem.color}25` }}>
+                        <strong style={{ fontSize: '0.75rem', color: alertItem.color, display: 'block', marginBottom: '2px' }}>
+                          {userSettings.lang === 'es' ? alertItem.titleEs : alertItem.titleEn}
+                        </strong>
+                        <p style={{ margin: 0, fontSize: '0.65rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                          {userSettings.lang === 'es' ? alertItem.descEs : alertItem.descEn}
+                        </p>
+                      </div>
+                    )) : (
+                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {userSettings.lang === 'es' ? 'No hay incidencias reportadas hoy.' : 'No active transit incidents today.'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </aside>
 
@@ -3918,6 +4112,92 @@ ${segments.join('\n')}
                       </div>
                     </div>
                   )}
+
+                  {/* Daily Lucky Metro Ticket Scratch/Validation Card */}
+                  <div 
+                    className="lucky-ticket-card card-glow" 
+                    style={{ 
+                      background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(15, 23, 42, 0.95) 100%)', 
+                      border: '1px solid rgba(37,99,235,0.3)', 
+                      borderRadius: '16px', 
+                      padding: '16px',
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      gap: '12px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      marginBottom: '16px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        🎫 {userSettings.lang === 'es' ? 'Billete Diario de la Suerte' : 'Daily Lucky Metro Ticket'}
+                      </span>
+                      <span style={{ fontSize: '0.65rem', background: ticketCheckedDate === new Date().toDateString() ? 'rgba(52, 211, 153, 0.12)' : 'rgba(239, 68, 68, 0.12)', color: ticketCheckedDate === new Date().toDateString() ? '#34d399' : '#f87171', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                        {ticketCheckedDate === new Date().toDateString() ? (userSettings.lang === 'es' ? '✓ VALIDADO' : '✓ VALIDATED') : (userSettings.lang === 'es' ? '● PENDIENTE' : '● PENDING')}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                      <div 
+                        style={{ 
+                          width: '90px', 
+                          height: '56px', 
+                          background: 'linear-gradient(135deg, #1e293b, #0f172a)', 
+                          border: `2px solid ${ticketCheckedDate === new Date().toDateString() ? '#10b981' : '#3b82f6'}`,
+                          borderRadius: '8px', 
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.8rem',
+                          boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                          flexShrink: 0
+                        }}
+                      >
+                        {ticketCheckedDate === new Date().toDateString() && ticketReward ? ticketReward.icon : '🎫'}
+                        <div style={{ position: 'absolute', top: '50%', left: '-5px', transform: 'translateY(-50%)', width: '10px', height: '10px', background: 'var(--brand-dark)', borderRadius: '50%' }}></div>
+                        <div style={{ position: 'absolute', top: '50%', right: '-5px', transform: 'translateY(-50%)', width: '10px', height: '10px', background: 'var(--brand-dark)', borderRadius: '50%' }}></div>
+                      </div>
+
+                      <div style={{ flex: 1 }}>
+                        <h5 style={{ margin: 0, fontSize: '0.85rem', color: 'white', fontWeight: 'bold' }}>
+                          {ticketCheckedDate === new Date().toDateString() && ticketReward 
+                            ? (userSettings.lang === 'es' ? '¡Recompensa Activa!' : 'Active Reward!') 
+                            : (userSettings.lang === 'es' ? 'Valida tu billete del día' : 'Validate today\'s ticket')}
+                        </h5>
+                        <p style={{ margin: '2px 0 0 0', fontSize: '0.7rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                          {ticketCheckedDate === new Date().toDateString() && ticketReward 
+                            ? ticketReward.desc 
+                            : (userSettings.lang === 'es' ? 'Haz clic en validar para conseguir XP instantáneos o multiplicadores para tus carreras de hoy.' : 'Click validate to get instant XP or multipliers for today\'s activities.')}
+                        </p>
+                      </div>
+
+                      {ticketCheckedDate !== new Date().toDateString() ? (
+                        <button
+                          onClick={handleValidateTicket}
+                          style={{
+                            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                            color: 'white',
+                            border: 'none',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            fontWeight: 'bold',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                            flexShrink: 0
+                          }}
+                        >
+                          {userSettings.lang === 'es' ? 'VALIDAR ➔' : 'VALIDATE ➔'}
+                        </button>
+                      ) : (
+                        <div style={{ fontSize: '1.2rem', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          ✅
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Daily Challenge Card */}
                   <div className="daily-challenge-card card-glow" style={{ background: 'linear-gradient(135deg, rgba(252, 82, 0, 0.1) 0%, rgba(15, 23, 42, 0.95) 100%)', border: '1px solid rgba(252,82,0,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', gap: '16px', alignItems: 'center' }}>
@@ -4341,6 +4621,29 @@ ${segments.join('\n')}
                     <span className="operator-name" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Línea Oficial SMyT Burgos</span>
                   </div>
 
+                  {selectedLine && transitAlerts.find(a => a.lineRef === selectedLine.ref) && (() => {
+                    const alertItem = transitAlerts.find(a => a.lineRef === selectedLine.ref)!;
+                    return (
+                      <div style={{
+                        background: alertItem.type === 'strike' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                        border: `1px dashed ${alertItem.color}`,
+                        borderRadius: '8px',
+                        padding: '10px',
+                        marginTop: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px'
+                      }}>
+                        <strong style={{ fontSize: '0.75rem', color: alertItem.color, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {alertItem.icon || '🚨'} {userSettings.lang === 'es' ? alertItem.titleEs : alertItem.titleEn}
+                        </strong>
+                        <p style={{ margin: 0, fontSize: '0.65rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                          {userSettings.lang === 'es' ? alertItem.descEs : alertItem.descEn}
+                        </p>
+                      </div>
+                    );
+                  })()}
+
                   {/* Route metrics inside Map tab */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '10px', marginTop: '4px' }}>
                     <div>
@@ -4679,6 +4982,22 @@ ${segments.join('\n')}
                         </button>
                       </h2>
                       <span className="profile-rank-badge">{currentRank.title} {currentRank.icon}</span>
+                      <span 
+                        style={{
+                          background: 'rgba(37, 99, 235, 0.15)',
+                          color: '#60a5fa',
+                          border: '1px solid rgba(37, 99, 235, 0.3)',
+                          padding: '2px 8px',
+                          borderRadius: '8px',
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          marginLeft: '8px'
+                        }}
+                      >
+                        ⚡ NIVEL {currentLevel} ({xp} XP)
+                      </span>
                     </div>
                     <p className="city-label" style={{ color: '#cbd5e1' }}>📍 {userProfile.location || 'Burgos, España'}</p>
                     <p className="bio" style={{ fontStyle: 'italic', margin: '4px 0 0 0', fontSize: '0.85rem' }}>{userProfile.bio || 'Sin biografía añadida.'}</p>
