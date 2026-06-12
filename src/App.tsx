@@ -381,6 +381,217 @@ const GLOBAL_RANKS: GlobalRank[] = [
   { id: 'legend', name: 'Leyenda del Tránsito', title: 'Leyenda Urbana Absoluta', minPercentage: 100, description: '¡100%! Has conquistado y corrido absolutamente todas las líneas de la ciudad.', icon: '⚔️' }
 ];
 
+interface Achievement {
+  id: string;
+  titleEs: string;
+  titleEn: string;
+  descEs: string;
+  descEn: string;
+  icon: string;
+  check: (stats: { globalLines: number; totalKm: number; totalElev: number; completedKeys: string[] }) => boolean;
+}
+
+const ACHIEVEMENTS: Achievement[] = [
+  {
+    id: 'first_run',
+    titleEs: 'Primer Viaje',
+    titleEn: 'First Journey',
+    descEs: 'Completa tu primera línea de transporte.',
+    descEn: 'Complete your first transit line.',
+    icon: '🎫',
+    check: (stats) => stats.globalLines >= 1
+  },
+  {
+    id: 'transit_enthusiast',
+    titleEs: 'Entusiasta del Tránsito',
+    titleEn: 'Transit Enthusiast',
+    descEs: 'Completa 5 líneas de transporte diferentes.',
+    descEn: 'Complete 5 different transit lines.',
+    icon: '🚇',
+    check: (stats) => stats.globalLines >= 5
+  },
+  {
+    id: 'half_century',
+    titleEs: 'Cincuenta Mil Metros',
+    titleEn: 'Fifty Kms',
+    descEs: 'Recorre un total de 50 kilómetros en tus validaciones.',
+    descEn: 'Cover a total of 50 kilometers in your validations.',
+    icon: '🏃‍♂️',
+    check: (stats) => stats.totalKm >= 50
+  },
+  {
+    id: 'mountain_climber',
+    titleEs: 'Escalador del Subsuelo',
+    titleEn: 'Subway Climber',
+    descEs: 'Acumula más de 500 metros de desnivel positivo.',
+    descEn: 'Accumulate more than 500 meters of positive elevation.',
+    icon: '⛰️',
+    check: (stats) => stats.totalElev >= 500
+  },
+  {
+    id: 'city_traveler',
+    titleEs: 'Viajero Frecuente',
+    titleEn: 'Frequent Traveler',
+    descEs: 'Completa líneas en al menos 2 ciudades diferentes.',
+    descEn: 'Complete lines in at least 2 different cities.',
+    icon: '✈️',
+    check: (stats) => {
+      const cities = new Set(stats.completedKeys.map(k => k.split('_')[0]));
+      return cities.size >= 2;
+    }
+  },
+  {
+    id: 'metro_legend',
+    titleEs: 'Leyenda del Metro',
+    titleEn: 'Metro Legend',
+    descEs: 'Alcanza el rango Leyenda del Tránsito (100% completado).',
+    descEn: 'Reach Transit Legend rank (100% completed).',
+    icon: '👑',
+    check: (stats) => stats.globalLines >= 15
+  }
+];
+
+const translations = {
+  es: {
+    app_title: "MetroMile",
+    feed: "Feed",
+    map: "Mapa",
+    search: "Buscador",
+    profile: "Perfil",
+    settings: "Configuración",
+    active_city: "Ciudad Activa",
+    transport: "Medio de Transporte",
+    unit: "Unidad de Medida",
+    privacy: "Privacidad",
+    privacy_public: "Público (Cualquiera ve mi historial)",
+    privacy_followers: "Solo Seguidores (Solo mis seguidores ven detalles)",
+    privacy_private: "Privado (Solo yo veo mis detalles)",
+    km: "Kilómetros (km)",
+    mi: "Millas (mi)",
+    save_close: "Guardar y Cerrar",
+    connections: "Enlaces",
+    legal_support: "Legal & Soporte",
+    about_us: "¿Quiénes Somos?",
+    contact: "Contacto y Soporte",
+    terms: "Términos y Licencias",
+    download_app: "Descargar MetroMile App",
+    free_activity: "Entrenamiento Libre",
+    simulated_run: "Simular Carrera",
+    sync_strava: "Vincular cuenta de Strava",
+    logout: "Cerrar Sesión Google",
+    google_login: "Conexión con Google",
+    active_city_label: "Ciudad Activa:",
+    transport_label: "Medio de Transporte:",
+    privacy_label: "Privacidad del Perfil:",
+    unit_label: "Unidad de Medida:",
+    notifications_label: "Notificaciones de Actividad:",
+    notify_follows: "Avisar cuando me siga un atleta nuevo",
+    notify_comments: "Avisar sobre nuevos comentarios",
+    notify_likes: "Avisar cuando le den Me Gusta",
+    bio: "Biografía",
+    profile_name: "Nombre de Perfil",
+    avatar: "Foto de Perfil (Emoji)",
+    close_profile: "Cerrar Perfil",
+    chat: "Chat",
+    follow: "Seguir",
+    unfollow: "Dejar de seguir",
+    stats: "Estadísticas",
+    activities_plural: "Actividades",
+    lines_plural: "Líneas",
+    rank: "Rango",
+    level: "Nivel",
+    recent_activities: "Actividades Recientes",
+    no_activities: "No hay actividades registradas en esta ciudad.",
+    comments: "Comentarios",
+    write_comment: "Escribe un comentario...",
+    post: "Publicar",
+    like: "Me gusta",
+    liked: "Te gusta",
+    share: "Compartir",
+    city_not_found: "¿No encuentras tu ciudad?",
+    request_city: "Solicitar activación",
+    city_requested: "¡Ciudad solicitada! Analizaremos el transporte para añadirla pronto.",
+    simulating: "Simulando...",
+    verify_gps: "Subir archivo GPX",
+    upload_gpx_descr: "Sube un archivo GPX de tu carrera para validar si completaste el recorrido.",
+    select_file: "Seleccionar Archivo GPX",
+    drag_drop: "o arrastra y suelta aquí",
+    level_up: "¡Subida de Rango!",
+    share_card_title: "Tarjeta Deportiva",
+    share_card_descr: "Genera una tarjeta visual de tu carrera para redes sociales.",
+    download_image: "Descargar Imagen",
+  },
+  en: {
+    app_title: "MetroMile",
+    feed: "Feed",
+    map: "Map",
+    search: "Search",
+    profile: "Profile",
+    settings: "Settings",
+    active_city: "Active City",
+    transport: "Transit Mode",
+    unit: "Unit of Measurement",
+    privacy: "Privacy",
+    privacy_public: "Public (Anyone can see my history)",
+    privacy_followers: "Followers Only (Only my followers see details)",
+    privacy_private: "Private (Only I can see my details)",
+    km: "Kilometers (km)",
+    mi: "Miles (mi)",
+    save_close: "Save and Close",
+    connections: "Connections",
+    legal_support: "Legal & Support",
+    about_us: "About Us",
+    contact: "Contact & Support",
+    terms: "Terms & Licenses",
+    download_app: "Download MetroMile App",
+    free_activity: "Free Run",
+    simulated_run: "Simulate Run",
+    sync_strava: "Link Strava Account",
+    logout: "Log Out Google",
+    google_login: "Google Connection",
+    active_city_label: "Active City:",
+    transport_label: "Transit Mode:",
+    privacy_label: "Profile Privacy:",
+    unit_label: "Measurement Unit:",
+    notifications_label: "Activity Notifications:",
+    notify_follows: "Notify when a new athlete follows me",
+    notify_comments: "Notify on new comments",
+    notify_likes: "Notify when someone likes my runs",
+    bio: "Biography",
+    profile_name: "Profile Name",
+    avatar: "Profile Photo (Emoji)",
+    close_profile: "Close Profile",
+    chat: "Chat",
+    follow: "Follow",
+    unfollow: "Unfollow",
+    stats: "Statistics",
+    activities_plural: "Activities",
+    lines_plural: "Lines",
+    rank: "Rank",
+    level: "Level",
+    recent_activities: "Recent Activities",
+    no_activities: "No activities registered in this city yet.",
+    comments: "Comments",
+    write_comment: "Write a comment...",
+    post: "Post",
+    like: "Like",
+    liked: "Liked",
+    share: "Share",
+    city_not_found: "Can't find your city?",
+    request_city: "Request Activation",
+    city_requested: "City requested! We will analyze transit routes to add it soon.",
+    simulating: "Simulating...",
+    verify_gps: "Upload GPX File",
+    upload_gpx_descr: "Upload a GPX file of your run to validate if you completed the route.",
+    select_file: "Select GPX File",
+    drag_drop: "or drag and drop here",
+    level_up: "Rank Leveled Up!",
+    share_card_title: "Sports Card",
+    share_card_descr: "Generate a visual graphic of your run for social sharing.",
+    download_image: "Download Image",
+  }
+};
+
 const mockAthletesList = [
   { id: 'carlos-gomez', name: 'Carlos Gómez', avatar: '🏃‍♂️', rankName: 'Explorador de Líneas', pct: 33, lines: 8, km: 58, privacy: 'public', bio: 'Me encanta explorar las rutas a ritmo de carrera.', completedRefs: ['L01', 'L05', 'L08'] },
   { id: 'sofia-martinez', name: 'Sofía Martínez', avatar: '⚡', rankName: 'Navegador Metropolitano', pct: 50, lines: 11, km: 82, privacy: 'followers', bio: 'Corredora habitual por las mañanas. El transporte urbano es mi entrenamiento preferido.', completedRefs: ['L02', 'L06', 'L11', 'L18'] },
@@ -487,6 +698,25 @@ export default function App() {
   
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isSimulatedLocation, setIsSimulatedLocation] = useState(false);
+
+  // Rebranding, multi-language & sharing states
+  const [selectedShareActivity, setSelectedShareActivity] = useState<UserActivity | null>(null);
+  const [cityRequestModal, setCityRequestModal] = useState(false);
+  const [requestCityName, setRequestCityName] = useState('');
+  const [requestCountryName, setRequestCountryName] = useState('');
+  const [offlineActivitiesQueue, setOfflineActivitiesQueue] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('metromile-offline-activities');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) {
+      return [];
+    }
+  });
+
+  const t = (key: keyof typeof translations['es']) => {
+    const lang = userSettings.lang || 'es';
+    return translations[lang as 'es' | 'en']?.[key] || translations['es']?.[key] || key;
+  };
   const [nearbyStops, setNearbyStops] = useState<{ stop: Stop; distanceKm: number; lineRefs: string[] }[]>([]);
 
   // Simulation states
@@ -631,7 +861,8 @@ export default function App() {
     notifyComments: true,
     notifyLikes: true,
     notifyChallenges: true,
-    unit: 'km'
+    unit: 'km',
+    lang: 'es'
   });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsActiveTab, setSettingsActiveTab] = useState<'profile' | 'devices' | 'preferences' | 'info'>('profile');
@@ -730,7 +961,10 @@ export default function App() {
 
     const settings = localStorage.getItem('busrun-user-settings-v5');
     if (settings) {
-      try { setUserSettings(JSON.parse(settings)); } catch(e) {}
+      try { 
+        const parsed = JSON.parse(settings);
+        setUserSettings(prev => ({ ...prev, ...parsed }));
+      } catch(e) {}
     }
 
     const notifs = localStorage.getItem('busrun-user-notifications-v5');
@@ -1972,6 +2206,222 @@ export default function App() {
       client.removeChannel(channel);
     };
   }, [showChatModal, chatRecipient, userProfile.id]);
+
+  // Render shareable sports card on canvas
+  useEffect(() => {
+    if (!selectedShareActivity) return;
+    const canvas = document.getElementById('share-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 1. Draw Background
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, '#090d16'); // Deep Night Blue
+    grad.addColorStop(1, '#0f172a'); // Slate 900
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 2. Draw Decorative Glowing Lines (Metro lines simulation)
+    ctx.strokeStyle = 'rgba(37, 99, 235, 0.2)'; // Metro Blue
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-50, 80);
+    ctx.lineTo(canvas.width + 50, 150);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.15)'; // Cyan/Green Line
+    ctx.beginPath();
+    ctx.moveTo(80, -50);
+    ctx.lineTo(250, canvas.height + 50);
+    ctx.stroke();
+
+    // 3. Draw MetroMile Brand Header
+    ctx.font = 'bold 24px system-ui, sans-serif';
+    ctx.fillStyle = '#2563eb'; // Metro Blue
+    ctx.fillText('Metro', 30, 45);
+    ctx.fillStyle = '#10b981'; // Neon Cyan
+    ctx.fillText('Mile', 96, 45);
+
+    ctx.font = '900 12px system-ui, sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('URBAN RUNNING CLUB', 30, 65);
+
+    // 4. Draw Athlete info
+    ctx.font = '28px system-ui, sans-serif';
+    ctx.fillText(selectedShareActivity.userAvatar || '🏃‍♂️', 30, 130);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px system-ui, sans-serif';
+    ctx.fillText(selectedShareActivity.userName, 75, 125);
+    
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '13px system-ui, sans-serif';
+    ctx.fillText(userSettings.lang === 'es' ? 'Atleta Oficial' : 'Official Athlete', 75, 142);
+
+    // 5. Draw Activity Details Box
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    if (ctx.roundRect) {
+      ctx.roundRect(25, 170, canvas.width - 50, 95, 12);
+    } else {
+      ctx.rect(25, 170, canvas.width - 50, 95);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    // Line Name
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px system-ui, sans-serif';
+    ctx.fillText(selectedShareActivity.lineName, 45, 205);
+
+    ctx.fillStyle = selectedShareActivity.lineRef === 'LIBRE' ? '#60a5fa' : '#34d399';
+    ctx.font = 'bold 11px system-ui, sans-serif';
+    const completionText = selectedShareActivity.lineRef === 'LIBRE' 
+      ? (userSettings.lang === 'es' ? 'ENTRENAMIENTO LIBRE' : 'FREE ACTIVITY')
+      : (userSettings.lang === 'es' ? 'TRAYECTO 100% COMPLETADO' : 'ROUTE 100% COMPLETED');
+    ctx.fillText(completionText, 45, 225);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillText(`ID: ${selectedShareActivity.lineRef}`, 45, 245);
+
+    // 6. Draw Stats Grid
+    // Distance
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillText(userSettings.lang === 'es' ? 'DISTANCIA' : 'DISTANCE', 40, 310);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px system-ui, sans-serif';
+    const distText = selectedShareActivity.distanceKm.toFixed(2);
+    ctx.fillText(`${distText} km`, 40, 338);
+
+    // Altimetry
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillText(userSettings.lang === 'es' ? 'DESNIVEL' : 'ELEVATION', 170, 310);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px system-ui, sans-serif';
+    ctx.fillText(`+${selectedShareActivity.elevationGain || 0} m`, 170, 338);
+
+    // Pace or duration
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillText(userSettings.lang === 'es' ? 'TIEMPO' : 'DURATION', 290, 310);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px system-ui, sans-serif';
+    const durationMin = Math.round((selectedShareActivity.timeSeconds || 2700) / 60);
+    ctx.fillText(`${durationMin} min`, 290, 338);
+
+    // 7. Draw Stylized Route Track Line if coordinates are available
+    if (selectedShareActivity.coords && selectedShareActivity.coords.length > 1) {
+      // Find bounding box
+      let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+      selectedShareActivity.coords.forEach(([lat, lon]) => {
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+      });
+
+      const latSpan = maxLat - minLat || 0.0001;
+      const lonSpan = maxLon - minLon || 0.0001;
+
+      // Draw inside a box: x from 40 to canvas.width - 40, y from 370 to 480
+      const trackX = 40;
+      const trackY = 370;
+      const trackW = canvas.width - 80;
+      const trackH = 100;
+
+      ctx.strokeStyle = '#10b981'; // Neon green track
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(16, 185, 129, 0.4)';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+
+      selectedShareActivity.coords.forEach(([lat, lon], idx) => {
+        // Map to box coordinates
+        const x = trackX + ((lon - minLon) / lonSpan) * trackW;
+        const y = trackY + trackH - ((lat - minLat) / latSpan) * trackH; // Invert y because lat increases upwards
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Reset shadow
+      ctx.shadowBlur = 0;
+
+      // Start/End points
+      const startPt = selectedShareActivity.coords[0];
+      const endPt = selectedShareActivity.coords[selectedShareActivity.coords.length - 1];
+      const startX = trackX + ((startPt[1] - minLon) / lonSpan) * trackW;
+      const startY = trackY + trackH - ((startPt[0] - minLat) / latSpan) * trackH;
+      const endX = trackX + ((endPt[1] - minLon) / lonSpan) * trackW;
+      const endY = trackY + trackH - ((endPt[0] - minLat) / latSpan) * trackH;
+
+      ctx.fillStyle = '#3b82f6'; // Start blue dot
+      ctx.beginPath(); ctx.arc(startX, startY, 5, 0, 2*Math.PI); ctx.fill();
+      ctx.fillStyle = '#ef4444'; // End red dot
+      ctx.beginPath(); ctx.arc(endX, endY, 5, 0, 2*Math.PI); ctx.fill();
+    } else {
+      // Draw a fallback clean grid layout line
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(30, 420);
+      ctx.lineTo(canvas.width - 30, 420);
+      ctx.stroke();
+    }
+  }, [selectedShareActivity, userSettings.lang]);
+
+  // Synchronize offline activities queue when online
+  useEffect(() => {
+    const syncOfflineQueue = async () => {
+      if (!navigator.onLine || offlineActivitiesQueue.length === 0 || !supabase || !userProfile.loggedIn) return;
+      
+      addNotification('MetroMile', `Sincronizando ${offlineActivitiesQueue.length} actividades guardadas offline...`, 'info');
+      
+      const successfulIds: string[] = [];
+      for (const act of offlineActivitiesQueue) {
+        try {
+          const { error } = await supabase.from('activities').insert({
+            id: act.id,
+            user_id: userProfile.id,
+            line_id: act.lineId || null,
+            line_ref: act.lineRef,
+            line_name: act.lineName,
+            distance_km: act.distanceKm,
+            elevation_gain: act.elevationGain,
+            time_seconds: act.timeSeconds,
+            date: act.date,
+            match_percent: act.matchPercent,
+            type: act.type,
+            city_id: act.cityId || 'burgos'
+          });
+          if (!error) {
+            successfulIds.push(act.id);
+          }
+        } catch(e) {
+          console.error("Error syncing activity", e);
+        }
+      }
+
+      if (successfulIds.length > 0) {
+        const remaining = offlineActivitiesQueue.filter(a => !successfulIds.includes(a.id));
+        setOfflineActivitiesQueue(remaining);
+        localStorage.setItem('metromile-offline-activities', JSON.stringify(remaining));
+        addNotification('MetroMile', `¡Sincronización offline completada con éxito!`, 'success');
+        fetchFeedFromSupabase();
+      }
+    };
+
+    window.addEventListener('online', syncOfflineQueue);
+    syncOfflineQueue();
+
+    return () => {
+      window.removeEventListener('online', syncOfflineQueue);
+    };
+  }, [offlineActivitiesQueue, userProfile.loggedIn, userProfile.id]);
 
   const aiRecommendation = useMemo(() => {
     if (burgosBusLines.length === 0) {
@@ -3503,14 +3953,40 @@ ${segments.join('\n')}
                       </div>
 
                       <div className="activity-footer">
-                        <div className="actions-bar">
+                        <div className="actions-bar" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                           <button 
                             className={`btn-like ${act.likedByMe ? 'liked' : ''}`}
                             onClick={() => handleLikeActivity(act.id)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                           >
-                            👍 Me Gusta ({act.likes})
+                            👍 {act.likedByMe ? t('liked') : t('like')} ({act.likes})
                           </button>
-                          <span className="comments-count">💬 {act.comments.length} Comentarios</span>
+                          <span className="comments-count" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: '#94a3b8' }}>
+                            💬 {act.comments.length} {t('comments')}
+                          </span>
+                          <button 
+                            className="btn-share"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#60a5fa',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              marginLeft: 'auto',
+                              transition: 'background 0.2s'
+                            }}
+                            onClick={() => {
+                              setSelectedShareActivity(act);
+                            }}
+                          >
+                            📤 {t('share')}
+                          </button>
                         </div>
 
                         {act.comments.length > 0 && (
@@ -4151,6 +4627,61 @@ ${segments.join('\n')}
                 </div>
               </section>
 
+              {/* Achievements & Medals */}
+              <section className="profile-medals-section" style={{ marginTop: '30px' }}>
+                <h3 className="section-title">{userSettings.lang === 'es' ? 'Logros y Medallas Deportivas' : 'Sporting Achievements & Medals'}</h3>
+                <p className="section-subtitle">
+                  {userSettings.lang === 'es' ? 'Completa carreras y supera los retos urbanos para ganar medallas únicas.' : 'Complete runs and conquer urban challenges to unlock unique badges.'}
+                </p>
+                <div className="medals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px', marginTop: '14px' }}>
+                  {ACHIEVEMENTS.map(ach => {
+                    const isUnlocked = ach.check({
+                      globalLines: globalCompletedCount,
+                      totalKm: totalKmCompleted,
+                      totalElev: totalElevationGainCompleted,
+                      completedKeys: completedKeys
+                    });
+                    return (
+                      <div 
+                        key={ach.id} 
+                        style={{
+                          background: isUnlocked ? 'rgba(37, 99, 235, 0.08)' : 'rgba(255,255,255,0.02)',
+                          border: isUnlocked ? '1px solid rgba(37, 99, 235, 0.3)' : '1px solid rgba(255,255,255,0.05)',
+                          borderRadius: '12px',
+                          padding: '16px 12px',
+                          textAlign: 'center',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '6px',
+                          opacity: isUnlocked ? 1 : 0.45,
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <span style={{ fontSize: '2.2rem', marginBottom: '4px' }}>{isUnlocked ? ach.icon : '🔒'}</span>
+                        <h4 style={{ margin: 0, fontSize: '0.8rem', color: isUnlocked ? 'white' : '#94a3b8', fontWeight: 'bold' }}>
+                          {userSettings.lang === 'es' ? ach.titleEs : ach.titleEn}
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '0.65rem', color: '#cbd5e1', lineHeight: '1.3' }}>
+                          {userSettings.lang === 'es' ? ach.descEs : ach.descEn}
+                        </p>
+                        <span style={{ 
+                          fontSize: '0.6rem', 
+                          fontWeight: 'bold', 
+                          color: isUnlocked ? '#34d399' : '#94a3b8',
+                          background: isUnlocked ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255,255,255,0.05)',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          marginTop: '4px'
+                        }}>
+                          {isUnlocked ? (userSettings.lang === 'es' ? '🏆 Desbloqueado' : '🏆 Unlocked') : (userSettings.lang === 'es' ? 'Bloqueado' : 'Locked')}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
               {/* GPX Verification Sandbox */}
               <div className="gpx-sandbox-layout">
                 <section className="gpx-uploader-section">
@@ -4416,6 +4947,40 @@ ${segments.join('\n')}
                     </div>
                   );
                 })}
+              </div>
+
+              <div 
+                style={{ 
+                  marginTop: '30px', 
+                  padding: '16px', 
+                  borderRadius: '12px', 
+                  background: 'rgba(255,255,255,0.02)', 
+                  border: '1px solid rgba(255,255,255,0.05)', 
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🗺️</span>
+                <strong style={{ fontSize: '0.9rem', color: 'white' }}>{t('city_not_found')}</strong>
+                <button
+                  onClick={() => setCityRequestModal(true)}
+                  style={{
+                    background: 'var(--brand-orange)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontWeight: 'bold',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s'
+                  }}
+                >
+                  ➕ {t('request_city')}
+                </button>
               </div>
             </div>
           )}
@@ -4936,6 +5501,18 @@ ${segments.join('\n')}
                 </div>
 
                 <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: '#cbd5e1' }}>Idioma (Language):</label>
+                  <select 
+                    value={userSettings.lang || 'es'}
+                    onChange={(e) => saveSettings({ ...userSettings, lang: e.target.value })}
+                    style={{ width: '100%', padding: '8px', borderRadius: '6px', background: '#333', color: 'white', border: '1px solid #555', fontSize: '0.85rem', cursor: 'pointer' }}
+                  >
+                    <option value="es">Español (ES)</option>
+                    <option value="en">English (EN)</option>
+                  </select>
+                </div>
+
+                <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: '#cbd5e1' }}>Notificaciones de Actividad:</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer' }}>
@@ -5084,6 +5661,173 @@ ${segments.join('\n')}
             >
               Guardar y Cerrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Canvas Share Card Modal */}
+      {selectedShareActivity && (
+        <div className="login-modal-overlay" style={{ zIndex: 9999999 }}>
+          <div className="login-modal-card" style={{ width: '100%', maxWidth: '440px', padding: '20px', textAlign: 'center' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 0 8px 0' }}>
+              <Icons.Info style={{ width: '20px', height: '20px', color: '#10b981' }} />
+              {t('share_card_title')}
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.8rem', color: '#cbd5e1' }}>
+              {t('share_card_descr')}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', background: '#05070b', padding: '10px', borderRadius: '12px', marginBottom: '16px' }}>
+              <canvas 
+                id="share-canvas" 
+                width="400" 
+                height="500" 
+                style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                onClick={() => {
+                  const canvas = document.getElementById('share-canvas') as HTMLCanvasElement;
+                  if (canvas) {
+                    const link = document.createElement('a');
+                    link.download = `MetroMile-${selectedShareActivity.lineRef}-${Date.now()}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    addNotification('MetroMile', userSettings.lang === 'es' ? '¡Imagen descargada!' : 'Image downloaded!', 'success');
+                  }
+                }}
+                style={{
+                  flex: 2,
+                  padding: '12px',
+                  borderRadius: '8px',
+                  background: 'var(--brand-orange)',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                📥 {t('download_image')}
+              </button>
+              <button 
+                onClick={() => setSelectedShareActivity(null)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  color: '#94a3b8',
+                  border: '1px solid #555',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                {userSettings.lang === 'es' ? 'Cerrar' : 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* City Request Modal */}
+      {cityRequestModal && (
+        <div className="login-modal-overlay" style={{ zIndex: 999999 }}>
+          <div className="login-modal-card" style={{ width: '100%', maxWidth: '380px', padding: '24px' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 10px 0', fontSize: '1.1rem' }}>
+              <Icons.Map style={{ width: '18px', height: '18px', color: 'var(--brand-orange)' }} />
+              {t('city_not_found')}
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+              {userSettings.lang === 'es' 
+                ? 'Indica el nombre de la ciudad y país que deseas agregar. Extraeremos sus líneas de transporte público en nuestra base de datos.'
+                : 'Enter the city and country you would like us to add. We will extract its transit lines into our global database.'}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left', marginBottom: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '4px', color: '#cbd5e1' }}>
+                  {userSettings.lang === 'es' ? 'Ciudad:' : 'City:'}
+                </label>
+                <input 
+                  type="text" 
+                  value={requestCityName} 
+                  onChange={(e) => setRequestCityName(e.target.value)}
+                  placeholder="ej. Barcelona, San Francisco..."
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', fontSize: '0.85rem' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '4px', color: '#cbd5e1' }}>
+                  {userSettings.lang === 'es' ? 'País:' : 'Country:'}
+                </label>
+                <input 
+                  type="text" 
+                  value={requestCountryName} 
+                  onChange={(e) => setRequestCountryName(e.target.value)}
+                  placeholder="ej. España, USA..."
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: '#222', color: 'white', fontSize: '0.85rem' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                onClick={async () => {
+                  if (!requestCityName || !requestCountryName) return;
+                  
+                  if (supabase && userProfile.loggedIn) {
+                    try {
+                      await supabase.from('city_requests').insert({
+                        user_id: userProfile.id,
+                        city_name: requestCityName,
+                        country: requestCountryName,
+                        created_at: new Date().toISOString()
+                      });
+                    } catch(e) {}
+                  }
+                  
+                  addNotification('MetroMile', t('city_requested'), 'success');
+                  setCityRequestModal(false);
+                  setRequestCityName('');
+                  setRequestCountryName('');
+                }}
+                style={{
+                  flex: 2,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  background: 'var(--brand-orange)',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem'
+                }}
+              >
+                {t('request_city')}
+              </button>
+              <button 
+                onClick={() => {
+                  setCityRequestModal(false);
+                  setRequestCityName('');
+                  setRequestCountryName('');
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  color: '#cbd5e1',
+                  border: '1px solid #555',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem'
+                }}
+              >
+                {userSettings.lang === 'es' ? 'Cancelar' : 'Cancel'}
+              </button>
+            </div>
           </div>
         </div>
       )}
