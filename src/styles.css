@@ -1,27 +1,27 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
-  background: #f1f5f9;
-  color: #0f172a;
+  background: #090d16;
+  color: #f8fafc;
   
   /* Brand Palette (Underground Metro Blue / Cyan Accents) */
-  --brand-orange: #2563eb;
-  --brand-orange-hover: #1d4ed8;
-  --brand-orange-light: rgba(37, 99, 235, 0.08);
+  --brand-orange: #3b82f6;
+  --brand-orange-hover: #60a5fa;
+  --brand-orange-light: rgba(59, 130, 246, 0.15);
   --brand-dark: #090d16;
-  --brand-dark-soft: #1e293b;
-  --brand-light: #ffffff;
+  --brand-dark-soft: #151f32;
+  --brand-light: #1e293b;
   --accent-green: #10b981;
-  --accent-green-soft: #ecfdf5;
+  --accent-green-soft: rgba(16, 185, 129, 0.15);
   --accent-red: #ef4444;
-  --accent-red-soft: #fef2f2;
-  --accent-blue: #3b82f6;
-  --accent-blue-soft: #eff6ff;
-  --border-color: #e2e8f0;
-  --text-muted: #64748b;
-  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  --accent-red-soft: rgba(239, 68, 68, 0.15);
+  --accent-blue: #06b6d4;
+  --accent-blue-soft: rgba(6, 182, 212, 0.15);
+  --border-color: #334155;
+  --text-muted: #94a3b8;
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.55);
 }
 
 * {
@@ -33,7 +33,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 100%);
+  background: linear-gradient(180deg, #090d16 0%, #030712 100%);
   line-height: 1.5;
 }
 
@@ -110,7 +110,7 @@ button {
   padding: 12px 20px;
   border-radius: 12px;
   background: var(--brand-dark);
-  color: var(--brand-light);
+  color: #ffffff;
   box-shadow: 0 10px 25px -10px rgba(15, 23, 42, 0.35);
   position: relative;
   overflow: visible;
@@ -126,7 +126,7 @@ button {
   right: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at right, rgba(252, 82, 0, 0.18) 0%, transparent 70%);
+  background: radial-gradient(circle at right, rgba(59, 130, 246, 0.18) 0%, transparent 70%);
   pointer-events: none;
   border-radius: inherit;
 }
@@ -153,7 +153,7 @@ button {
 
 .logo-icon {
   font-size: 2.2rem;
-  background: linear-gradient(135deg, #ff7e40, var(--brand-orange));
+  background: linear-gradient(135deg, #06b6d4, var(--brand-orange));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 2px 4px rgba(252,82,0,0.3));
@@ -233,7 +233,7 @@ button {
   justify-content: center;
   font-size: 1.1rem;
   font-weight: 800;
-  box-shadow: 0 2px 5px rgba(252, 82, 0, 0.3);
+  box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3);
 }
 
 .widget-info {
@@ -333,7 +333,7 @@ button {
 .nav-tab-btn.active {
   color: white;
   background: var(--brand-orange);
-  box-shadow: 0 4px 14px rgba(252, 82, 0, 0.35);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
 }
 
 /* GOOGLE LOGIN / OAUTH POPUP MODAL */
@@ -394,7 +394,7 @@ button {
   padding: 12px 16px;
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   cursor: pointer;
   text-align: left;
   transition: all 0.2s;
@@ -435,7 +435,7 @@ button {
 }
 
 .btn-close-modal {
-  background: #f1f5f9;
+  background: var(--brand-dark-soft);
   border: none;
   border-radius: 10px;
   padding: 12px;
@@ -558,7 +558,7 @@ button {
 
 .city-mock-preview {
   margin-top: 24px;
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   padding: 24px;
   border-radius: 16px;
   border: 1px solid var(--border-color);
@@ -628,7 +628,7 @@ button {
   justify-content: center;
   font-size: 1.8rem;
   font-weight: 800;
-  box-shadow: 0 8px 18px rgba(252, 82, 0, 0.3);
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.3);
 }
 
 .info-preview h3 {
@@ -645,7 +645,7 @@ button {
 /* Rango progression dashboard in sidebar */
 .rank-progress-indicator {
   width: 100%;
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 10px 12px;
@@ -722,14 +722,14 @@ button {
   font-weight: 800;
   cursor: pointer;
   width: 100%;
-  box-shadow: 0 4px 12px rgba(252, 82, 0, 0.25);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
   animation: pulsateGlow 2s infinite;
 }
 
 @keyframes pulsateGlow {
-  0% { box-shadow: 0 0 0 0 rgba(252, 82, 0, 0.4); }
-  70% { box-shadow: 0 0 0 8px rgba(252, 82, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(252, 82, 0, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
 }
 
 .btn-force-sync:hover {
@@ -842,7 +842,7 @@ button {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #f1f5f9;
+  background: var(--brand-dark-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -864,14 +864,14 @@ button {
   display: flex;
   align-items: center;
   background: var(--brand-orange-light);
-  border: 1px solid rgba(252, 82, 0, 0.25);
+  border: 1px solid rgba(59, 130, 246, 0.25);
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
 }
 
 .act-ref-badge:hover {
-  background: rgba(252, 82, 0, 0.12);
+  background: rgba(59, 130, 246, 0.12);
   transform: scale(1.02);
 }
 
@@ -899,7 +899,7 @@ button {
 .activity-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   border-radius: 12px;
   border: 1px solid var(--border-color);
   overflow: hidden;
@@ -959,7 +959,7 @@ button {
 }
 
 .btn-like {
-  background: #f1f5f9;
+  background: var(--brand-dark-soft);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 6px 14px;
@@ -976,7 +976,7 @@ button {
 .btn-like.liked {
   background: var(--brand-orange-light);
   color: var(--brand-orange);
-  border-color: rgba(252, 82, 0, 0.3);
+  border-color: rgba(59, 130, 246, 0.3);
 }
 
 .comments-count {
@@ -986,7 +986,7 @@ button {
 }
 
 .feed-comments {
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   border-radius: 12px;
   padding: 12px;
   display: flex;
@@ -1095,7 +1095,7 @@ button {
 }
 
 .btn-toggle-group button {
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   border: none;
   border-right: 1px solid var(--border-color);
   padding: 8px 4px;
@@ -1219,7 +1219,7 @@ button {
 }
 
 .status-badge.pending {
-  background: #f1f5f9;
+  background: var(--brand-dark-soft);
   color: var(--text-muted);
 }
 
@@ -1345,7 +1345,7 @@ button {
   font-size: 1rem;
   padding: 8px 16px;
   border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(252, 82, 0, 0.25);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
 }
 
 .sidebar-header-flex h3 {
@@ -1361,7 +1361,7 @@ button {
 }
 
 .route-elevation-box {
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 12px 16px;
@@ -1417,7 +1417,7 @@ button {
 .btn-download-gpx-large {
   background: var(--brand-orange);
   color: white;
-  box-shadow: 0 4px 10px rgba(252, 82, 0, 0.2);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
 }
 
 .btn-download-gpx-large:hover {
@@ -1441,7 +1441,7 @@ button {
 
 /* Nearby Location Detector Style */
 .nearby-detection-box {
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   border-radius: 12px;
   border: 1px solid var(--border-color);
   padding: 14px;
@@ -1578,7 +1578,7 @@ button {
   align-items: center;
   gap: 8px;
   padding: 6px;
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   border-radius: 6px;
   border: 1px solid var(--border-color);
 }
@@ -1698,7 +1698,7 @@ button {
   align-items: center;
   justify-content: center;
   font-size: 2.4rem;
-  box-shadow: 0 10px 24px rgba(252, 82, 0, 0.35);
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.35);
 }
 
 .profile-name-badge {
@@ -1789,7 +1789,7 @@ button {
 .profile-bar-completion .bar-bg {
   height: 12px;
   width: 100%;
-  background: #f1f5f9;
+  background: var(--brand-dark-soft);
   border-radius: 99px;
   overflow: hidden;
 }
@@ -1823,7 +1823,7 @@ button {
   border-radius: 16px;
   padding: 20px;
   border: 1px solid var(--border-color);
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1840,7 +1840,7 @@ button {
   border-color: var(--accent-blue);
 }
 .device-card.coros.connected {
-  background: rgba(252, 82, 0, 0.04);
+  background: rgba(59, 130, 246, 0.04);
   border-color: var(--brand-orange);
 }
 .device-card.suunto.connected {
@@ -1942,8 +1942,8 @@ button {
 }
 
 .medal-card.unlocked {
-  border-color: rgba(252, 82, 0, 0.4);
-  background: linear-gradient(180deg, white 0%, rgba(252, 82, 0, 0.03) 100%);
+  border-color: rgba(59, 130, 246, 0.4);
+  background: linear-gradient(180deg, white 0%, rgba(59, 130, 246, 0.03) 100%);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
@@ -1990,7 +1990,7 @@ button {
 .condition-badge {
   font-size: 0.65rem;
   font-weight: 700;
-  background: #f1f5f9;
+  background: var(--brand-dark-soft);
   color: var(--text-muted);
   padding: 3px 8px;
   border-radius: 4px;
@@ -2054,7 +2054,7 @@ button {
   justify-content: space-between;
   align-items: center;
   padding: 14px 16px;
-  background: #f8fafc;
+  background: var(--brand-dark-soft);
   border-radius: 12px;
   border: 1px solid var(--border-color);
   gap: 16px;
@@ -2248,7 +2248,7 @@ button {
 
 .bottom-nav-item.active {
   color: var(--brand-orange);
-  background: rgba(252, 82, 0, 0.12);
+  background: rgba(59, 130, 246, 0.12);
 }
 
 .bottom-nav-icon {
@@ -2352,7 +2352,7 @@ button {
 }
 
 .map-filter-btn {
-  background: #f1f5f9;
+  background: var(--brand-dark-soft);
   border: 1px solid var(--border-color);
   padding: 6px 12px;
   border-radius: 8px;
@@ -2444,7 +2444,7 @@ button {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: #f1f5f9;
+  background: var(--brand-dark-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2526,3 +2526,90 @@ button {
 }
 
 
+
+/* Global dark mode input and select styling override */
+input[type="text"], input[type="search"], input[type="email"], select, textarea {
+  background: rgba(0, 0, 0, 0.25) !important;
+  color: #f8fafc !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+input[type="text"]::placeholder, input[type="search"]::placeholder, textarea::placeholder {
+  color: #64748b;
+}
+
+/* Premium Segmented Controls (iOS / Duolingo Style) */
+.segmented-control {
+  display: flex;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  gap: 2px;
+}
+
+.segmented-control-btn {
+  flex: 1;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-weight: bold;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.segmented-control-btn.active {
+  background: var(--brand-orange);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.segmented-control-btn:hover:not(.active) {
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.segmented-control-mini {
+  display: flex;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.segmented-control-mini-btn {
+  flex: 1;
+  padding: 6px;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.segmented-control-mini-btn.active {
+  background: var(--brand-orange);
+  color: white;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+}
+
+.segmented-control-mini-btn:hover:not(.active) {
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
