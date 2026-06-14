@@ -2696,3 +2696,39 @@ input[type="text"]::placeholder, input[type="search"]::placeholder, textarea::pl
   }
 }
 
+/* Screen shake and particles on stamp impact */
+.ticket-stamp-container-animated {
+  animation: containerShake 0.2s cubic-bezier(.36,.07,.19,.97) 1.0s both;
+}
+
+@keyframes containerShake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+.ticket-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.ticket-particle:nth-child(1) { top: 50%; left: 50%; animation: particleBurst1 0.6s ease-out 1.0s forwards; }
+.ticket-particle:nth-child(2) { top: 50%; left: 50%; animation: particleBurst2 0.6s ease-out 1.0s forwards; }
+.ticket-particle:nth-child(3) { top: 50%; left: 50%; animation: particleBurst3 0.6s ease-out 1.0s forwards; }
+.ticket-particle:nth-child(4) { top: 50%; left: 50%; animation: particleBurst4 0.6s ease-out 1.0s forwards; }
+.ticket-particle:nth-child(5) { top: 50%; left: 50%; animation: particleBurst5 0.6s ease-out 1.0s forwards; }
+.ticket-particle:nth-child(6) { top: 50%; left: 50%; animation: particleBurst6 0.6s ease-out 1.0s forwards; }
+
+@keyframes particleBurst1 { 0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(-50%, -50%) translate(-80px, -50px) scale(0); opacity: 0; } }
+@keyframes particleBurst2 { 0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(-50%, -50%) translate(80px, -40px) scale(0); opacity: 0; } }
+@keyframes particleBurst3 { 0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(-50%, -50%) translate(-60px, 60px) scale(0); opacity: 0; } }
+@keyframes particleBurst4 { 0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(-50%, -50%) translate(70px, 50px) scale(0); opacity: 0; } }
+@keyframes particleBurst5 { 0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(-50%, -50%) translate(-10px, -90px) scale(0); opacity: 0; } }
+@keyframes particleBurst6 { 0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(-50%, -50%) translate(10px, 90px) scale(0); opacity: 0; } }
+
+

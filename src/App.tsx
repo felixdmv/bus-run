@@ -3,6 +3,18 @@ import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from './supabaseClient';
+import {
+  playBusHorn,
+  playTrainHorn,
+  playMetroScreech,
+  playBusPressure,
+  playFollowSound,
+  playLikeSound,
+  playFavoriteNotificationSound,
+  playTicketOpenSound,
+  playTicketStampSound
+} from './utils/soundEffects';
+
 
 interface Stop {
   id: string;
@@ -47,6 +59,9 @@ interface UserActivity {
   likedByMe?: boolean;
   cityId: string;
   coords?: [number, number][]; // Track athlete's GPX path
+  customTitle?: string;
+  customDescription?: string;
+  photoUrl?: string;
 }
 
 interface BurgosRank {
@@ -407,7 +422,13 @@ interface Achievement {
   descEs: string;
   descEn: string;
   icon: string;
-  check: (stats: { globalLines: number; totalKm: number; totalElev: number; completedKeys: string[] }) => boolean;
+  check: (stats: { 
+    globalLines: number; 
+    totalKm: number; 
+    totalElev: number; 
+    completedKeys: string[]; 
+    completed: Record<string, { date: string; timeSeconds: number; type: 'running' | 'walking' | 'cycling'; matchPercent: number }>
+  }) => boolean;
 }
 
 const ACHIEVEMENTS: Achievement[] = [
@@ -457,6 +478,54 @@ const ACHIEVEMENTS: Achievement[] = [
     check: (stats) => {
       const cities = new Set(stats.completedKeys.map(k => k.split('_')[0]));
       return cities.size >= 2;
+    }
+  },
+  {
+    id: 'night_rider',
+    titleEs: 'Vigilante Nocturno',
+    titleEn: 'Night Rider',
+    descEs: 'Completa una línea corriendo de noche (de 22:00 a 6:00).',
+    descEn: 'Complete a line running at night (between 10 PM and 6 AM).',
+    icon: '🌙',
+    check: (stats) => {
+      return Object.values(stats.completed).some(item => {
+        if ((item as any).timestamp) {
+          const hour = new Date((item as any).timestamp).getHours();
+          return hour >= 22 || hour < 6;
+        }
+        // Fallback: Check if they have runs and current hour is night
+        const currentHour = new Date().getHours();
+        return stats.completedKeys.length >= 1 && (currentHour >= 22 || currentHour < 6);
+      });
+    }
+  },
+  {
+    id: 'express_train',
+    titleEs: 'Tren Expreso',
+    titleEn: 'Express Train',
+    descEs: 'Completa una línea a un ritmo medio inferior a 4:30 min/km.',
+    descEn: 'Complete a line at an average pace under 4:30 min/km.',
+    icon: '⚡',
+    check: (stats) => {
+      return Object.entries(stats.completed).some(([key, item]) => {
+        // Skip keys that end in the sport suffix to avoid double counting if needed
+        if (key.endsWith('_running') || key.endsWith('_cycling') || key.endsWith('_walking')) return false;
+        const dist = (item as any).distanceKm || 6.8;
+        const pace = (item.timeSeconds / dist) / 60;
+        return pace < 4.5 && pace > 1.0;
+      });
+    }
+  },
+  {
+    id: 'golden_passport',
+    titleEs: 'Pasaporte Dorado',
+    titleEn: 'Golden Passport',
+    descEs: 'Completa líneas de transporte en al menos 3 ciudades diferentes.',
+    descEn: 'Complete transit lines in at least 3 different cities.',
+    icon: '🛂',
+    check: (stats) => {
+      const cities = new Set(stats.completedKeys.map(k => k.split('_')[0]));
+      return cities.size >= 3;
     }
   },
   {
@@ -1553,7 +1622,7 @@ export default function App() {
   const [selectedLineId, setSelectedLineId] = useState<string>('');
   
   // Completed is stored as: Record of "city_lineRef" (e.g. "burgos_L01") -> completion details
-  const [completed, setCompleted] = useState<Record<string, { date: string; timeSeconds: number; type: 'running' | 'walking' | 'cycling'; matchPercent: number }>>({});
+  const [completed, setCompleted] = useState<Record<string, { date: string; timeSeconds: number; type: 'running' | 'walking' | 'cycling'; matchPercent: number; timestamp?: number; distanceKm?: number }>>({});
   
   const [feedActivities, setFeedActivities] = useState<UserActivity[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1726,6 +1795,8 @@ export default function App() {
     const reward = rewards[Math.floor(Math.random() * rewards.length)];
     setStampingReward(reward);
     setIsStampingTicket(true);
+    playTicketOpenSound();
+    playTicketStampSound();
     
     setTimeout(() => {
       setTicketCheckedDate(today);
@@ -1936,10 +2007,17 @@ export default function App() {
     notifyLikes: true,
     notifyChallenges: true,
     unit: 'km',
-    lang: 'es'
+    lang: 'es',
+    soundEnabled: true
   });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsActiveTab, setSettingsActiveTab] = useState<'profile' | 'devices' | 'preferences' | 'info'>('profile');
+
+  // Activity personalization editing states
+  const [editingActivity, setEditingActivity] = useState<UserActivity | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editPhotoUrl, setEditPhotoUrl] = useState('');
 
   // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -2907,13 +2985,17 @@ export default function App() {
           date: new Date().toLocaleDateString(),
           timeSeconds: finalSeconds,
           type: recordingType,
-          matchPercent: bestMatchPercent
+          matchPercent: bestMatchPercent,
+          timestamp: Date.now(),
+          distanceKm: distanceKm
         },
         [`${activeCity}_${detectedLine.ref}_${sportKey}`]: {
           date: new Date().toLocaleDateString(),
           timeSeconds: finalSeconds,
           type: recordingType,
-          matchPercent: bestMatchPercent
+          matchPercent: bestMatchPercent,
+          timestamp: Date.now(),
+          distanceKm: distanceKm
         }
       };
       saveProgress(newCompleted);
@@ -3040,13 +3122,17 @@ export default function App() {
               date: new Date().toLocaleDateString(),
               timeSeconds: finalSeconds,
               type: 'running' as const,
-              matchPercent: 100
+              matchPercent: 100,
+              timestamp: Date.now(),
+              distanceKm: distanceKm
             },
             [`${activeCity}_${targetLine.ref}_running`]: {
               date: new Date().toLocaleDateString(),
               timeSeconds: finalSeconds,
               type: 'running' as const,
-              matchPercent: 100
+              matchPercent: 100,
+              timestamp: Date.now(),
+              distanceKm: distanceKm
             }
           };
           saveProgress(newCompleted);
@@ -3507,7 +3593,10 @@ export default function App() {
             likes: actLikes.length,
             likedByMe: likedByMe,
             comments: actComments,
-            cityId: act.city_id
+            cityId: act.city_id,
+            customTitle: act.custom_title || undefined,
+            customDescription: act.custom_description || undefined,
+            photoUrl: act.photo_url || undefined
           };
         });
 
@@ -3533,7 +3622,10 @@ export default function App() {
         date: newActivity.date,
         match_percent: newActivity.matchPercent,
         type: newActivity.type,
-        city_id: newActivity.cityId || 'burgos'
+        city_id: newActivity.cityId || 'burgos',
+        custom_title: newActivity.customTitle || null,
+        custom_description: newActivity.customDescription || null,
+        photo_url: newActivity.photoUrl || null
       });
       if (error) console.error('Error inserting activity in Supabase:', error);
       else {
@@ -3542,10 +3634,41 @@ export default function App() {
     }
   };
 
+  const handleUpdateActivity = (actId: string, title: string, desc: string, photo: string) => {
+    const updated = feedActivities.map(act => {
+      if (act.id === actId) {
+        return {
+          ...act,
+          customTitle: title || undefined,
+          customDescription: desc || undefined,
+          photoUrl: photo || undefined
+        };
+      }
+      return act;
+    });
+    setFeedActivities(updated);
+    localStorage.setItem(STORAGE_FEED_KEY, JSON.stringify(updated));
+
+    addNotification('Feed', 'Actividad personalizada con éxito.', 'success');
+
+    if (supabase && userProfile.loggedIn) {
+      supabase.from('activities').update({
+        custom_title: title || null,
+        custom_description: desc || null,
+        photo_url: photo || null
+      }).eq('id', actId).then(({ error }) => {
+        if (error) {
+          console.error('Error updating activity in Supabase:', error);
+        }
+      });
+    }
+  };
+
   const handleToggleFollow = async (athId: string, athName: string) => {
     const isCurrentlyFollowing = !!followedAthletes[athId];
     setFollowedAthletes(prev => ({ ...prev, [athId]: !isCurrentlyFollowing }));
     addNotification('Social', isCurrentlyFollowing ? `Has dejado de seguir a ${athName}.` : `¡Ahora sigues a ${athName}!`, 'info');
+    if (!isCurrentlyFollowing) playFollowSound();
     
     if (supabase && userProfile.loggedIn) {
       if (isCurrentlyFollowing) {
@@ -4033,6 +4156,7 @@ export default function App() {
       return act;
     });
     saveFeed(updated);
+    if (liked) playLikeSound();
 
     if (supabase && userProfile.loggedIn) {
       if (liked) {
@@ -4276,7 +4400,9 @@ ${gpxSegments}
             date: new Date().toLocaleDateString(),
             timeSeconds: timeEst,
             type: 'running' as const,
-            matchPercent: simulatedAccuracy
+            matchPercent: simulatedAccuracy,
+            timestamp: Date.now(),
+            distanceKm: uncompletedLine.distanceKm
           }
         };
         saveProgress(newCompleted);
@@ -4403,13 +4529,17 @@ ${gpxSegments}
             date: new Date(run.start_date || Date.now()).toLocaleDateString(),
             timeSeconds: duration,
             type: actType,
-            matchPercent: bestMatchScore
+            matchPercent: bestMatchScore,
+            timestamp: new Date(run.start_date || Date.now()).getTime(),
+            distanceKm: distanceKm
           };
           updatedCompleted[`${activeCity}_${bestMatchLine.ref}_${sportKey}`] = {
             date: new Date(run.start_date || Date.now()).toLocaleDateString(),
             timeSeconds: duration,
             type: actType,
-            matchPercent: bestMatchScore
+            matchPercent: bestMatchScore,
+            timestamp: new Date(run.start_date || Date.now()).getTime(),
+            distanceKm: distanceKm
           };
 
           newActs.push({
@@ -4543,13 +4673,17 @@ ${gpxSegments}
           date: new Date().toLocaleDateString(),
           timeSeconds: timeSeconds,
           type: uploadActivityType,
-          matchPercent: bestMatchPercent
+          matchPercent: bestMatchPercent,
+          timestamp: Date.now(),
+          distanceKm: distanceKm
         },
         [`${activeCity}_${detectedLine.ref}_${sportKey}`]: {
           date: new Date().toLocaleDateString(),
           timeSeconds: timeSeconds,
           type: uploadActivityType,
-          matchPercent: bestMatchPercent
+          matchPercent: bestMatchPercent,
+          timestamp: Date.now(),
+          distanceKm: distanceKm
         }
       };
       saveProgress(newCompleted);
@@ -5576,6 +5710,7 @@ ${segments.join('\n')}
                                     const newFavs = { ...favoriteAthletes, [aid]: !favoriteAthletes[aid] };
                                     saveFavorites(newFavs);
                                     addNotification('Social', newFavs[aid] ? `¡${act.userName} marcado/a como favorito/a! 🌟` : `Quitado/a ${act.userName} de favoritos.`, 'info');
+                                    if (newFavs[aid]) playFavoriteNotificationSound();
                                   }}
                                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 0 }}
                                   title={isFav ? "Quitar de favoritos" : "Marcar como favorito"}
@@ -5589,13 +5724,59 @@ ${segments.join('\n')}
                             </span>
                           </div>
                         </div>
-                        <div className="act-ref-badge" onClick={() => { setSelectedLineId(act.lineId); setActiveTab('map'); }}>
-                          <span className="ref-lbl">{act.lineRef}</span>
-                          <span className="name-lbl">{act.lineName.split(': ')[1] || act.lineName}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {(act.userName === userProfile.name || act.userId === userProfile.id) && (
+                            <button
+                              onClick={() => {
+                                setEditingActivity(act);
+                                setEditTitle(act.customTitle || '');
+                                setEditDesc(act.customDescription || '');
+                                setEditPhotoUrl(act.photoUrl || '');
+                              }}
+                              style={{
+                                background: 'rgba(255,255,255,0.06)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '6px',
+                                color: '#cbd5e1',
+                                padding: '4px 8px',
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: '500'
+                              }}
+                            >
+                              ✏️ {userSettings.lang === 'es' ? 'Editar' : 'Edit'}
+                            </button>
+                          )}
+                          <div className="act-ref-badge" onClick={() => { if (act.lineId !== 'free') { setSelectedLineId(act.lineId); setActiveTab('map'); } }}>
+                            <span className="ref-lbl">{act.lineRef}</span>
+                            <span className="name-lbl">{act.lineName.split(': ')[1] || act.lineName}</span>
+                          </div>
                         </div>
                       </div>
 
                       <div className="activity-body">
+                        {/* Custom Title and Description */}
+                        {act.customTitle && (
+                          <h4 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', color: 'white', fontWeight: 'bold' }}>
+                            {act.customTitle}
+                          </h4>
+                        )}
+                        {act.customDescription && (
+                          <p style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#cbd5e1', fontStyle: 'italic', lineHeight: '1.4' }}>
+                            "{act.customDescription}"
+                          </p>
+                        )}
+
+                        {/* Custom Photo URL */}
+                        {act.photoUrl && (
+                          <div style={{ margin: '0 0 12px 0', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <img src={act.photoUrl} alt="User Run Photo" style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', display: 'block' }} />
+                          </div>
+                        )}
+
                         <div className="activity-stats">
                           <div className="act-stat-box">
                             <span className="l">Distancia</span>
@@ -6890,7 +7071,8 @@ ${segments.join('\n')}
                       globalLines: globalCompletedCount,
                       totalKm: totalKmCompleted,
                       totalElev: totalElevationGainCompleted,
-                      completedKeys: completedKeys
+                      completedKeys: completedKeys,
+                      completed: completed
                     });
                     return (
                       <div 
@@ -7719,6 +7901,147 @@ ${segments.join('\n')}
         </div>
       )}
 
+      {/* Edit Activity Personalization Modal */}
+      {editingActivity && (
+        <div className="login-modal-overlay" style={{ zIndex: 999999 }}>
+          <div className="login-modal-card" style={{ width: '100%', maxWidth: '480px', padding: '24px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem', color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              ✏️ {userSettings.lang === 'es' ? 'Personalizar Actividad' : 'Personalize Activity'}
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: '#cbd5e1' }}>
+                  {userSettings.lang === 'es' ? 'Título Personalizado:' : 'Custom Title:'}
+                </label>
+                <input 
+                  type="text" 
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder={editingActivity.lineName}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: '#cbd5e1' }}>
+                  {userSettings.lang === 'es' ? 'Descripción del entrenamiento:' : 'Activity Description:'}
+                </label>
+                <textarea 
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  placeholder={userSettings.lang === 'es' ? '¿Cómo te has sentido? ¿Hacía viento?' : 'How did the run go?'}
+                  rows={3}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.85rem', resize: 'vertical' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: '#cbd5e1' }}>
+                  {userSettings.lang === 'es' ? 'Foto de la Actividad (URL de imagen):' : 'Activity Photo (Image URL):'}
+                </label>
+                <input 
+                  type="text" 
+                  value={editPhotoUrl}
+                  onChange={(e) => setEditPhotoUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/... o enlace de tu foto"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', background: '#0f172a', color: 'white', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.85rem', marginBottom: '8px' }}
+                />
+                
+                {/* Preset suggestions */}
+                <span style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8', marginBottom: '6px', fontWeight: '500' }}>
+                  {userSettings.lang === 'es' ? 'O elige un fondo temático de tránsito:' : 'Or choose a preset transit photo:'}
+                </span>
+                <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+                  {[
+                    { name: 'Bus', url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=500&auto=format&fit=crop&q=60' },
+                    { name: 'Metro', url: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=500&auto=format&fit=crop&q=60' },
+                    { name: 'Estación', url: 'https://images.unsplash.com/photo-1541417904950-b855846fe074?w=500&auto=format&fit=crop&q=60' },
+                    { name: 'Running', url: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=500&auto=format&fit=crop&q=60' }
+                  ].map(preset => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setEditPhotoUrl(preset.url)}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '0.65rem',
+                        borderRadius: '6px',
+                        background: editPhotoUrl === preset.url ? 'var(--brand-orange)' : 'rgba(255,255,255,0.06)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setEditPhotoUrl('')}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '0.65rem',
+                      borderRadius: '6px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      color: '#f87171',
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    🗑️ {userSettings.lang === 'es' ? 'Quitar foto' : 'Remove'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingActivity(null)}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {userSettings.lang === 'es' ? 'Cancelar' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editingActivity) {
+                      handleUpdateActivity(editingActivity.id, editTitle, editDesc, editPhotoUrl);
+                    }
+                    setEditingActivity(null);
+                  }}
+                  style={{
+                    background: 'var(--brand-orange)',
+                    border: 'none',
+                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 12px rgba(252, 82, 0, 0.2)'
+                  }}
+                >
+                  {userSettings.lang === 'es' ? 'Guardar Cambios' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* User Configurations Settings Modal */}
       {showSettingsModal && (
         <div className="login-modal-overlay" style={{ zIndex: 999999 }}>
@@ -8093,6 +8416,63 @@ ${segments.join('\n')}
                       />
                       Avisar cuando le den Me Gusta
                     </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', color: '#cbd5e1' }}>
+                    {userSettings.lang === 'es' ? 'Sonidos de la Aplicación:' : 'App Sound Effects:'}
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={userSettings.soundEnabled !== false} 
+                        onChange={(e) => {
+                          const updated = { ...userSettings, soundEnabled: e.target.checked };
+                          saveSettings(updated);
+                          if (e.target.checked) playLikeSound();
+                        }} 
+                      />
+                      {userSettings.lang === 'es' ? 'Activar efectos de sonido en la interfaz' : 'Enable interface sound effects'}
+                    </label>
+
+                    {/* Sound board preview buttons */}
+                    <div style={{ marginTop: '8px' }}>
+                      <span style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8', marginBottom: '6px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {userSettings.lang === 'es' ? 'Probar Sonidos de Tránsito:' : 'Test Transit Sounds:'}
+                      </span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                        <button 
+                          type="button"
+                          onClick={playBusHorn}
+                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                        >
+                          🚌 {userSettings.lang === 'es' ? 'Bocina Bus' : 'Bus Horn'}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={playTrainHorn}
+                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                        >
+                          🚇 {userSettings.lang === 'es' ? 'Claxon Tren' : 'Train Horn'}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={playMetroScreech}
+                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                        >
+                          🚈 {userSettings.lang === 'es' ? 'Chirrido Metro' : 'Metro Screech'}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={playBusPressure}
+                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '6px', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                        >
+                          💨 {userSettings.lang === 'es' ? 'Presión Aire' : 'Air Brake'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -8501,8 +8881,11 @@ ${segments.join('\n')}
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button 
                     onClick={() => {
-                      const newFavs = { ...favoriteAthletes, [selectedAthlete.id]: !favoriteAthletes[selectedAthlete.id] };
+                      const id = selectedAthlete.id as string;
+                      const isFavNow = !favoriteAthletes[id];
+                      const newFavs = { ...favoriteAthletes, [id]: isFavNow };
                       saveFavorites(newFavs);
+                      if (isFavNow) playFavoriteNotificationSound();
                     }}
                     style={{
                       padding: '10px 12px',
@@ -8690,11 +9073,19 @@ ${segments.join('\n')}
       {/* Lucky Ticket Stamp Animation Overlay */}
       {isStampingTicket && stampingReward && (
         <div className="ticket-stamp-overlay">
-          <div className="ticket-stamp-container" style={{ border: `3px solid ${stampingReward.type === 'multiplier' ? '#eab308' : '#10b981'}`, background: 'linear-gradient(135deg, #1e293b 0%, #020617 100%)' }}>
+          <div className="ticket-stamp-container ticket-stamp-container-animated" style={{ border: `3px solid ${stampingReward.type === 'multiplier' ? '#eab308' : '#10b981'}`, background: 'linear-gradient(135deg, #1e293b 0%, #020617 100%)' }}>
             <div style={{ fontSize: '1.2rem', color: '#3b82f6', marginBottom: '8px', opacity: 0.2, fontWeight: '800', letterSpacing: '2px' }}>
               🎫 METROMILE TICKET
             </div>
             
+            {/* Bursting particles on impact */}
+            <span className="ticket-particle" style={{ backgroundColor: stampingReward.type === 'multiplier' ? '#eab308' : '#10b981' }}></span>
+            <span className="ticket-particle" style={{ backgroundColor: stampingReward.type === 'multiplier' ? '#eab308' : '#10b981' }}></span>
+            <span className="ticket-particle" style={{ backgroundColor: stampingReward.type === 'multiplier' ? '#eab308' : '#10b981' }}></span>
+            <span className="ticket-particle" style={{ backgroundColor: stampingReward.type === 'multiplier' ? '#eab308' : '#10b981' }}></span>
+            <span className="ticket-particle" style={{ backgroundColor: stampingReward.type === 'multiplier' ? '#eab308' : '#10b981' }}></span>
+            <span className="ticket-particle" style={{ backgroundColor: stampingReward.type === 'multiplier' ? '#eab308' : '#10b981' }}></span>
+
             {/* The descending stamp effect */}
             <div className="ticket-stamp-ink" style={{ 
               color: stampingReward.type === 'multiplier' ? '#eab308' : '#10b981', 
