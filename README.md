@@ -5,7 +5,11 @@
 <h1 align="center">MetroMile 🚇🏃‍♂️</h1>
 
 <p align="center">
-  <strong>El juego de running urbano donde conquistas las líneas de transporte de tu ciudad.</strong>
+  <strong>La red social deportiva global donde conquistas las líneas de transporte de tu ciudad vinculando tu Strava.</strong>
+</p>
+
+<p align="center">
+  <a href="https://metromile-run.vercel.app/"><strong>🔗 ¡Prueba la App Aquí! (metromile-run.vercel.app)</strong></a>
 </p>
 
 <p align="center">
@@ -19,34 +23,35 @@
 
 ## 🏃‍♀️ ¿Qué es MetroMile?
 
-¿Te gusta correr por la ciudad? ¿Te conoces las líneas de metro y autobús de memoria? **MetroMile** es la primera red social deportiva que convierte tus entrenamientos urbanos en un juego de conquista de transporte. 
+¿Te gusta correr por la ciudad? ¿Te conoces las líneas de metro y autobús de memoria? **MetroMile** es una **red social deportiva** que convierte tus entrenamientos urbanos en retos de transporte colectivos. 
 
-El objetivo es sencillo: **elige una línea de metro, tranvía o autobús de tu ciudad y complétala corriendo, trotando o caminando su trazado de parada a parada.** Sincroniza tus actividades GPS y compite con la comunidad para ascender desde *Transeúnte* a la categoría de *Leyenda del Tránsito*.
+El funcionamiento es muy sencillo: **elige una línea de metro, tranvía o autobús de tu ciudad y complétala recorriendo su trazado de parada a parada.** Sincroniza tus actividades vinculando tu cuenta de **Strava** y compite con una comunidad global de atletas urbanos para ascender desde *Transeúnte* a la categoría de *Leyenda del Tránsito*.
 
 ---
 
-## 📲 Cómo instalar la app en tu móvil o PC
+## 📲 ¡Pruébalo ahora! Cómo instalar la app en tu móvil o PC
 
-MetroMile está diseñada como una **Aplicación Web Progresiva (PWA)**. Esto significa que **no necesitas registrarte en Google Play ni App Store ni realizar descargas pesadas**. Funciona directamente a través de un enlace y se instala de forma nativa en tu dispositivo en segundos.
+No necesitas registrarte en Google Play ni App Store ni realizar descargas complejas. MetroMile funciona como una Aplicación Web Progresiva (PWA) instalable directamente desde tu navegador de internet.
 
-### Para empezar a jugar:
-1. **Abre el enlace de la aplicación** en el navegador de tu móvil u ordenador.
-2. **Instálala en tu pantalla de inicio:**
+### Sigue estos pasos para instalarla:
+1. **Accede a la aplicación haciendo clic en el siguiente enlace:**  
+   👉 [**https://metromile-run.vercel.app/**](https://metromile-run.vercel.app/)
+2. **Instálala en tu pantalla de inicio en segundos:**
    * **En iPhone / iPad (Safari):** Pulsa el botón **Compartir** (el icono del cuadrado con la flecha hacia arriba) y selecciona **"Añadir a pantalla de inicio"**.
    * **En Android (Chrome):** Pulsa los tres puntos de la esquina superior derecha y selecciona **"Instalar aplicación"** o **"Añadir a pantalla de inicio"**.
-   * **En Ordenador (Chrome/Edge):** Haz clic en el icono de instalación (una pequeña pantalla con una flecha) en la barra de direcciones para ejecutarla como una app de escritorio independiente.
-3. ¡Listo! Ya tienes la app a pantalla completa, con acceso rápido y geolocalización GPS optimizada.
+   * **En Ordenador (Chrome/Edge):** Haz clic en el icono de instalación (una pequeña pantalla con una flecha) que aparece en la barra de direcciones para usarla como una app de escritorio independiente.
+3. ¡Listo! Ya puedes abrirla a pantalla completa y sincronizar tus entrenamientos.
 
 ---
 
 ## 🌟 Características Principales
 
-* **🗺️ Retos de Transporte Real:** Elige tu ciudad, selecciona una línea y recórrela. La app validará automáticamente qué porcentaje de paradas has completado con tu trazado GPS.
-* **⚡ Sincronización Automática con Strava:** Vincula tu cuenta de Strava en un clic. Tus entrenamientos se importarán de fondo y validarán las líneas urbanas sin que tengas que hacer nada.
-* **🔊 Sonidos Temáticos Inmersivos:** La app cuenta con un sintetizador de audio retro que reproduce cláxones de trenes, bocinas de buses, chirridos metálicos de metro en curvas y el característico escape de aire comprimido neumático al interactuar con las tarjetas del feed. Puedes desactivarlos o probarlos en el menú de configuración.
-* **🎫 Billete Diario de la Suerte:** Valida tu billete digital una vez al día para ganar bonificadores de experiencia (XP) y multiplicadores en tus carreras diarias. ¡Disfruta de la animación física de timbrado y estallido de partículas!
-* **📸 Feed Social y Personalización:** Comparte tus carreras con tus seguidores. Puedes personalizar tus trayectos completados editando el título, escribiendo una descripción de cómo te has sentido y subiendo tus propias fotos o eligiendo fondos de tránsito espectaculares.
-* **⭐ Atletas Favoritos:** Sigue a tus amigos de entrenamiento y activa notificaciones con sonidos especiales de campana brillante cuando marquen una nueva línea como conquistada.
+* **🔌 Conexión Directa con Strava:** Vincula tu cuenta de Strava en un solo clic desde los Ajustes. Tus entrenamientos GPS se sincronizarán en segundo plano de forma instantánea para validar qué líneas de transporte has completado.
+* **🗺️ Retos de Transporte Real:** Elige tu ciudad, selecciona una línea de transporte y recórrela. La app analizará las paradas por las que has pasado para calcular el porcentaje de coincidencia.
+* **🔊 Sonidos Temáticos Inmersivos:** La app incluye efectos de audio retro sintetizados (bocinas de autobuses, cláxones de trenes, chirridos metálicos de metro en curvas y liberación de aire neumático de frenos). Puedes desactivarlos o testearlos en tu panel de pruebas de Ajustes.
+* **🎫 Billete Diario de la Suerte:** Valida tu billete digital una vez al día para conseguir bonificadores de experiencia (XP) y multiplicadores para tus carreras. Disfruta de la animación con vibración física y estallido de partículas doradas o esmeraldas.
+* **📸 Feed Social y Personalización:** Comparte tus trayectos con tus seguidores en el feed público. Puedes personalizar tus entrenamientos editando el título, añadiendo una descripción de cómo te has sentido y subiendo tus propias fotos o fondos temáticos de transporte.
+* **⭐ Atletas Favoritos:** Sigue a tus amigos de entrenamiento y recibe notificaciones especiales con sonidos de campana brillante cuando registren una línea completada.
 
 ---
 
@@ -63,5 +68,5 @@ Completa retos especiales para ganar insignias exclusivas en tu perfil:
 ## ⚠️ Seguridad Ante Todo
 
 > [!IMPORTANT]
-> **MetroMile es un juego de running sobre la superficie.** 
+> **MetroMile es una red social de running urbano sobre la superficie.** 
 > Bajo ninguna circunstancia debes acceder a túneles de metro, vías de tren activas, autopistas o zonas restringidas de tránsito. Todos los retos deben completarse utilizando exclusivamente las aceras, pasos de peatones y vías públicas seguras destinadas a los peatones. ¡Corre con cabeza!
